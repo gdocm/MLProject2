@@ -109,18 +109,23 @@ class model_runner():
         population_size=[20,40,60]
         generations=[20,40,100],
         p_crossover=[0.1,0.3,0.6,0.9]
-        p_subtree_mutation=[0.9,0.6,0.3,0.1]  
+        p_subtree=[0.9,0.6,0.3,0.1]  
         name= modelsStr[4]
         param_grids.append({name+'__population_size': population_size,
                name+'__generations':generations,
                name+'__p_crossover': p_crossover,
-               name+'__p_subtree_mutation': p_subtree_mutation})
+               name+'__p_subtree_mutation': p_subtree,
+               name+'__p_gs_mutation':[0],
+               name+'__p_gs_crossover':[0],
+               name+'__p_hoist_mutation':[0],
+               name+'__p_point_mutation': [0]})
 
             
         #Hyper Parameter Optimization
         #Grid_Search
-        for m in range(len(models)):
-            models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
+        #for m in range(len(models)):
+        m = 4
+        models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
         
         scores = []
         kf = KFold(5)
@@ -139,7 +144,8 @@ class model_runner():
     def _gridSearchModel(self,model_name, model, param_grid, cv = 5):
         print(">>>>>>>>>>>> Optimizing " + model_name)
         pipeline = Pipeline([(model_name, model)])
-        print(">>>>>>>>>>>> Estimator")
+        print(self.training.dtypes)
+        print(self.labels.dtypes)
         estimator = GridSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1,verbose = 1,scoring=self.metric)
         estimator.fit(self.training, self.labels)
         return estimator

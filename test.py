@@ -54,4 +54,3 @@ def pheno_variance(pop):
 
 def geno_variance(pop):
     return np.sum([(distance_o -avg(distances_o))**2 for distance_o in distances_o])/(len(distances_o)-1)
-'''

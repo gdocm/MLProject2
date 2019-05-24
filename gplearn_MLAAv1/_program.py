@@ -169,8 +169,6 @@ class _Program(object):
         self._n_samples = None
         self._max_samples = None
         self._indices_state = None
-        self.point_depth()
-
 
     def build_program(self, random_state):
         """Build a naive random program.
@@ -667,13 +665,6 @@ class _Program(object):
                              set(range(donor_start, donor_end)))
         # Insert genetic material from donor
         return (self.program[:start] + donor[donor_start:donor_end] + self.program[end:]), removed, donor_removed
-    
-    def point_depth(self,  ite =1, depth = 0):
-        
-        node = self.program[len(self.program) - ite]
-        return node
-        
-            
 
     def gs_crossover(self, donor, random_state):
         """Perform the Geometric Semantic crossover operation on the program."""
