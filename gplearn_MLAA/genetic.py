@@ -5,6 +5,7 @@ are supervised learning methods based on applying evolutionary operations on
 computer programs.
 """
 
+
 # Author: Trevor Stephens <trevorstephens.com>
 #
 # License: BSD 3 clause
@@ -28,6 +29,7 @@ from .functions import _function_map, _Function, sig1 as sigmoid
 from .utils import _partition_estimators
 from .utils import check_random_state, NotFittedError
 from gplearn_MLAA.Recorder import Recorder
+import pickle
 
 __all__ = ['SymbolicRegressor', 'SymbolicClassifier', 'SymbolicTransformer']
 
@@ -276,7 +278,7 @@ def _get_semantic_stopping_criteria(n_semantic_neighbors, elite, X, y, sample_we
     return tie, edv
 
 
-def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, val_indices, seeds, params):
+def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, val_indices, seeds, params, library = None):
     """Private function used to build a batch of programs within a job."""
     n_samples, n_features = X[train_indices].shape
     # Unpack parameters
@@ -294,7 +296,8 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     max_samples = params['max_samples']
     feature_names = params['feature_names']
     semantical_computation = params["semantical_computation"]
-
+    depth_probs = params["depth_probs"]
+    
     max_samples = int(max_samples * n_samples)
 
     def _tournament():
@@ -313,18 +316,16 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     for i in range(n_programs):
 
         random_state = check_random_state(seeds[i])
-
         if parents is None:
             program = None
             genome = None
         else:
             method = random_state.uniform()
             parent, parent_index = _tournament()
-
             if method < method_probs[0]:
                 # GP: swap crossover
                 donor, donor_index = _tournament()
-                program, removed, remains = parent.crossover(donor.program, random_state)
+                program, removed, remains = parent.crossover(donor.program, random_state, depth_probs)
                 genome = {'method': 'Crossover',
                           'parent_idx': parent_index,
                           'parent_nodes': removed,
@@ -332,7 +333,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'donor_nodes': remains}
             elif method < method_probs[1]:
                 # GP: subtree mutation
-                program, removed, _ = parent.subtree_mutation(random_state)
+                program, removed, _ = parent.subtree_mutation(random_state, depth_probs = depth_probs)
                 genome = {'method': 'Subtree Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': removed}
@@ -372,12 +373,18 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
 
                 genome = {'method': 'GS-Mutation',
                           'parent_idx': parent_index}
+                
+            elif method < method_probs[7]:
+                program = parent.grasm_mutation(X, random_state, depth_probs = depth_probs)
+                genome = {'method':'Grasm-Mutation',
+                          'parent_idx':parent_index}
             else:
                 # reproduction
                 program = parent.reproduce()
                 genome = {'method': 'Reproduction',
                           'parent_idx': parent_index,
                           'parent_nodes': []}
+
 
         program = _Program(function_set=function_set,
                            arities=arities,
@@ -392,7 +399,8 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                            feature_names=feature_names,
                            random_state=random_state,
                            program=program,
-                           semantical_computation=semantical_computation)
+                           semantical_computation=semantical_computation,
+                           library = library)
 
         program.parents = genome
 
@@ -471,6 +479,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  p_point_replace=0.05,
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
+                 p_grasm_mutation = 0.0,
                  gsm_ms=-1.0,
                  semantical_computation=False,
                  val_set=0.0,
@@ -482,7 +491,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  verbose=0,
                  log=False,
                  random_state=None,
-                 dynamic_depth = None):
+                 dynamic_depth = None,
+                 depth_probs = False):
 
         self.population_size = population_size
         self.hall_of_fame = hall_of_fame
@@ -508,6 +518,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.p_point_replace = p_point_replace
         self.p_gs_crossover = p_gs_crossover
         self.p_gs_mutation = p_gs_mutation
+        self.p_grasm_mutation = p_grasm_mutation
         self.gsm_ms = gsm_ms
         self.semantical_computation = semantical_computation
         self.val_set = val_set
@@ -520,7 +531,45 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.log = log
         self.random_state = random_state
         self.dynamic_depth = dynamic_depth
-
+        self.depth_probs = depth_probs
+        self.library = None
+        
+    def createProcedureLibrary(self, X):
+        '''
+        
+        Creates a Procedures Library.
+        This implementation assumes a maximum depth of 1 for simplicity.
+        
+        '''
+        print("Checking for library...")
+        try:
+            filename = open('procedureLibrary.pkl','rb')
+            self.library = pickle.load(filename)
+            return
+        except:
+            pass
+        print("Creating Procedures...")
+        functions = [fun for list_ in self._arities.values() for fun in list_]
+        
+        self.library = []
+        for ix,fun in enumerate(functions):
+            print("Percentage: ",ix/len(functions))
+            program = [fun]
+            terms = list(np.arange(1,self.n_features_ + 1))
+            if fun.arity == 2:
+                if fun.name == 'mul' or fun.name == 'add':
+                    terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(term, len(terms))]
+                else:
+                    terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(len(terms))]
+            print(len(terms), print(len(X)))
+            prgs = [program + term for term in terms]
+            self.library = self.library + prgs
+        filename = open('procedureLibrary.pkl','wb')
+        pickle.dump(self.library, filename)
+        print(">>>>>>>>>>>> Finnished")
+        #self.function_set
+        #self.n_features_
+    
     def _verbose_reporter(self, run_details=None):
         """A report of the progress of the evolution process.
 
@@ -694,7 +743,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             raise ValueError('The sum of p_gs_crossover and p_gs_mutation must be equal to 1.0')
 
         self._method_probs = np.append(self._method_probs, np.array([self.p_gs_crossover, _gs_method_probs, self.gsm_ms]))
-
+        self._method_probs = np.append(self._method_probs, np.array([self.p_grasm_mutation]))        
         # Parameters for semantic stopping criteria
         if 0.0 < self.tie_stopping_criteria <= 1 and 0 < self.edv_stopping_criteria <= 1.0:
             raise ValueError('Only one semantic stopping criteria is allowed: TIE or EDV. '
@@ -804,7 +853,11 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             logger = logging.getLogger(','.join(list(map(str, log_event))))
         else:
             logger = None
-
+        
+        #if grasm mutation create library
+        if self.p_grasm_mutation > 0:
+            self.createProcedureLibrary(X)
+        
         for gen in range(prior_generations, self.generations):
 
             start_time = time()
@@ -837,7 +890,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                                           train_indices,
                                           val_indices,
                                           seeds[starts[i]:starts[i + 1]],
-                                          params)
+                                          params, library = self.library)
                 for i in range(n_jobs))
 
             # Reduce, maintaining order across different n_jobs
@@ -868,7 +921,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                                          np.var(length))
             for program in population:
                 program.fitness_ = program.fitness(parsimony_coefficient)
-
+                
             self._programs.append(population)
 
             # Remove old programs that didn't make it into the new population.
@@ -1221,6 +1274,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  p_point_replace=0.05,
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
+                 p_grasm_mutation=0.0,
                  gsm_ms=-1.0,
                  semantical_computation=False,
                  val_set=0.0,
@@ -1232,7 +1286,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  verbose=0,
                  log=False,
                  random_state=None,
-                 dynamic_depth = None):
+                 dynamic_depth = None,
+                 depth_probs = False):
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
             generations=generations,
@@ -1255,6 +1310,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             p_point_replace=p_point_replace,
             p_gs_crossover=p_gs_crossover,
             p_gs_mutation=p_gs_mutation,
+            p_grasm_mutation=p_grasm_mutation,
             gsm_ms=gsm_ms,
             semantical_computation=semantical_computation,
             val_set=val_set,
@@ -1266,7 +1322,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             verbose=verbose,
             log=log,
             random_state=random_state,
-            dynamic_depth = dynamic_depth)
+            dynamic_depth = dynamic_depth,
+            depth_probs = depth_probs)
 
         self.recorder = Recorder(self.generations)
     def __str__(self):

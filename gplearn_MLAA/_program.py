@@ -13,10 +13,10 @@ from copy import copy
 
 import numpy as np
 from sklearn.utils.random import sample_without_replacement
-
+from scipy.spatial.distance import euclidean
 from .functions import _Function, _function_map, sig1, tanh1
 from .utils import check_random_state
-
+from .Node import Node
 
 class _Program(object):
 
@@ -134,7 +134,8 @@ class _Program(object):
                  transformer=None,
                  feature_names=None,
                  program=None,
-                 semantical_computation=False):
+                 semantical_computation=False,
+                 library = None):
         self.function_set = function_set
         self.arities = arities
         self.init_depth = (init_depth[0], init_depth[1] + 1)
@@ -148,6 +149,7 @@ class _Program(object):
         self.feature_names = feature_names
         self.program = program
         self.semantical_computation = semantical_computation
+        self.library = library
 
         if self.program is None:
             # Create a naive random program
@@ -169,9 +171,8 @@ class _Program(object):
         self._n_samples = None
         self._max_samples = None
         self._indices_state = None
-        self.point_depth()
-
-
+        #self.treeTransform()
+        
     def build_program(self, random_state):
         """Build a naive random program.
 
@@ -596,7 +597,7 @@ class _Program(object):
         penalty = parsimony_coefficient * len(self.program) * self.metric.sign
         return self.raw_fitness_ - penalty
 
-    def get_subtree(self, random_state, program=None):
+    def get_subtree(self, random_state, program=None, depth_probs = False):
         """Get a random subtree from the program.
 
         Parameters
@@ -620,9 +621,16 @@ class _Program(object):
         # of choosing functions 90% of the time and leaves 10% of the time.
         probs = np.array([0.9 if isinstance(node, _Function) else 0.1
                           for node in program])
+        
+        
+        #If probs depends on depth
+        if depth_probs:
+            depths = self.pointDepth(program)
+            probs = np.array([probs[i]*(1/np.max(depths))*(depths[i]+1) for i in range(len(probs))])
+        
         probs = np.cumsum(probs / probs.sum())
+            
         start = np.searchsorted(probs, random_state.uniform())
-
         stack = 1
         end = start
         while stack > end - start:
@@ -637,7 +645,7 @@ class _Program(object):
         """Return a copy of the embedded program."""
         return copy(self.program)
 
-    def crossover(self, donor, random_state):
+    def crossover(self, donor, random_state, depth_probs = False):
         """Perform the crossover genetic operation on the program.
 
         Crossover selects a random subtree from the embedded program to be
@@ -659,22 +667,56 @@ class _Program(object):
 
         """
         # Get a subtree to replace
-        start, end = self.get_subtree(random_state)
+        start, end = self.get_subtree(random_state, depth_probs = depth_probs)
         removed = range(start, end)
         # Get a subtree to donate
-        donor_start, donor_end = self.get_subtree(random_state, donor)
+        donor_start, donor_end = self.get_subtree(random_state, donor, depth_probs = depth_probs)
         donor_removed = list(set(range(len(donor))) -
                              set(range(donor_start, donor_end)))
         # Insert genetic material from donor
         return (self.program[:start] + donor[donor_start:donor_end] + self.program[end:]), removed, donor_removed
     
-    def point_depth(self,  ite =1, depth = 0):
+    def treeTransform(self):
+        struct = np.array(self.program.copy())
         
-        node = self.program[len(self.program) - ite]
-        return node
+        if not isinstance(struct[0], _Function):
+            return
         
+        for i in range(len(struct)-1, -1,-1):
+            node = self.program[i]
             
-
+            if isinstance(node, _Function):
+                children = struct[i+1:i+1+node.arity]
+                temp = Node(node, children = children)
+                struct = np.delete(struct,range(i+1, i+1+node.arity))
+                struct[i] = temp
+                
+        struct[0].setDepth()
+        return struct[0]
+    
+    def pointDepth(self, program):
+        depths = [0]
+        depth = 1
+        arities = [2]
+        for i in range(1, len(program)):
+            node = program[i]
+            
+            if isinstance(node, _Function):
+                arities[-1] -= 1
+                arities.append(node.arity)
+                depths.append(depth)
+                depth += 1
+            else:
+                arities[-1] -= 1
+                depths.append(depth)
+                
+            while arities[-1] == 0:
+                depth -= 1
+                del arities[-1]
+                if len(arities) == 0:
+                    break
+        return depths
+    
     def gs_crossover(self, donor, random_state):
         """Perform the Geometric Semantic crossover operation on the program."""
         random_tree = [sig1] + self.build_program(random_state)
@@ -689,7 +731,21 @@ class _Program(object):
         offspring_depth = np.maximum(np.maximum(self.program_depth, donor.program_depth)+2, self._depth_program(rt)+3)
         return (np.add(np.multiply(self.program, rt_semantics), np.multiply(np.subtract(1, rt_semantics), donor.program)),
                 offspring_length, offspring_depth)
-
+    
+    def grasm_mutation(self, X, random_state, alpha = 0.5, depth_probs=False):
+        start, end = self.get_subtree(random_state, depth_probs = depth_probs)
+        p = self.program[start:end]
+        p_semantics = _Program.execute_(p,X)
+        distances = [euclidean(prgs[1], p_semantics) for prgs in self.library]
+        d_min = np.min(distances)
+        d_max = np.max(distances)
+        threshold = d_min + alpha*(d_max - d_min)
+        rcl = self.library[np.array(distances) <= threshold]
+        p = np.random.choice(rcl)[0]
+        self.program = np.delete(self.program, [start,end])
+        self.program = np.insert(self.program,start, p)
+        return self.program
+    
     def gs_mutation_sig(self, ms, random_state):
         """Perform the Geometric Semantic operation on the program."""
         rt1 = [sig1] + self.build_program(random_state)
@@ -708,7 +764,7 @@ class _Program(object):
         offspring_depth = 1 + np.maximum(self.program_depth, self._depth_program(random_tree))
         return (np.add(self.program, _Program.execute_(random_tree, X)), offspring_length, offspring_depth)
 
-    def subtree_mutation(self, random_state):
+    def subtree_mutation(self, random_state, depth_probs = False):
         """Perform the subtree mutation operation on the program.
 
         Subtree mutation selects a random subtree from the embedded program to
@@ -732,7 +788,7 @@ class _Program(object):
         # Build a new naive program
         chicken = self.build_program(random_state)
         # Do subtree mutation via the headless chicken method!
-        return self.crossover(chicken, random_state)
+        return self.crossover(chicken, random_state, depth_probs)
 
     def hoist_mutation(self, random_state):
         """Perform the hoist mutation operation on the program.

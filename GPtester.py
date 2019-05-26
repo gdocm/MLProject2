@@ -46,8 +46,12 @@ est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 200, p_gs_mu
                            p_point_mutation = 0,
                            p_hoist_mutation = 0,
                            population_size = 1000,
-                           p_crossover = 0.6,
-                           p_subtree_mutation = 0.4, dynamic_depth = True)
+                           p_crossover = 0.1,
+                           p_subtree_mutation = 0.1,
+                           p_grasm_mutation = 0.9,
+                           dynamic_depth = True,
+                           depth_probs = True)
+
 est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
 
 preds = est_gp.predict(fe.unseen.drop(target_var, axis = 1))
