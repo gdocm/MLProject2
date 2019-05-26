@@ -555,7 +555,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         for ix,fun in enumerate(functions):
             print("Percentage: ",ix/len(functions))
             program = [fun]
-            terms = list(np.arange(1,self.n_features_ + 1))
+            terms = list(np.arange(self.n_features_))
             if fun.arity == 2:
                 if fun.name == 'mul' or fun.name == 'add':
                     terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(term, len(terms))]
@@ -564,6 +564,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             print(len(terms), print(len(X)))
             prgs = [program + term for term in terms]
             self.library = self.library + prgs
+        self.library  = [(prg,_Program.execute_(prg,X)) for prg in self.library]
         filename = open('procedureLibrary.pkl','wb')
         pickle.dump(self.library, filename)
         print(">>>>>>>>>>>> Finnished")

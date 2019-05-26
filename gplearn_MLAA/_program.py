@@ -390,7 +390,7 @@ class _Program(object):
         node = self.program[0]
         if isinstance(node, float):
             return np.repeat(node, X.shape[0])
-        if isinstance(node, int):
+        if isinstance(node, int) or isinstance(node, np.int32):
             return X[:, node]
 
         apply_stack = []
@@ -401,6 +401,7 @@ class _Program(object):
                 apply_stack.append([node])
             else:
                 # Lazily evaluate later
+
                 apply_stack[-1].append(node)
 
             while len(apply_stack[-1]) == apply_stack[-1][0].arity + 1:
@@ -440,13 +441,13 @@ class _Program(object):
         """
         # Check for single-node programs
         node = program[0]
+        
         if isinstance(node, float):
             return np.repeat(node, X.shape[0])
-        if isinstance(node, int):
+        if isinstance(node, int) or isinstance(node, np.int32):
             return X[:, node]
 
         apply_stack = []
-
         for node in program:
 
             if isinstance(node, _Function):
@@ -740,11 +741,9 @@ class _Program(object):
         d_min = np.min(distances)
         d_max = np.max(distances)
         threshold = d_min + alpha*(d_max - d_min)
-        rcl = self.library[np.array(distances) <= threshold]
-        p = np.random.choice(rcl)[0]
-        self.program = np.delete(self.program, [start,end])
-        self.program = np.insert(self.program,start, p)
-        return self.program
+        rcl = np.array(self.library)[np.array(distances) <= threshold]
+        p = rcl[np.random.choice(len(rcl))][0]
+        return self.program[:start] + p + self.program[end:]
     
     def gs_mutation_sig(self, ms, random_state):
         """Perform the Geometric Semantic operation on the program."""
