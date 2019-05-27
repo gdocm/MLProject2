@@ -297,7 +297,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     feature_names = params['feature_names']
     semantical_computation = params["semantical_computation"]
     depth_probs = params["depth_probs"]
-    
+    oracle = params["oracle"]
     max_samples = int(max_samples * n_samples)
 
     def _tournament():
@@ -360,6 +360,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 genome = {'method': 'GS-Crossover',
                           'parent_idx': parent_index,
                           'donor_idx': donor_index}
+            
             elif method < method_probs[5]:
                 # GS mutation
                 if method_probs[6] == -1:
@@ -377,6 +378,10 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             elif method < method_probs[7]:
                 program = parent.grasm_mutation(X, random_state, depth_probs = depth_probs)
                 genome = {'method':'Grasm-Mutation',
+                          'parent_idx':parent_index}
+            elif method < method_probs[8]:
+                program = parent.competent_mutation(X, y, oracle, random_state, depth_probs)
+                genome = {'method':'Competent-Mutation',
                           'parent_idx':parent_index}
             else:
                 # reproduction
@@ -480,6 +485,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
                  p_grasm_mutation = 0.0,
+                 p_competent_mutation = 0.0,
                  gsm_ms=-1.0,
                  semantical_computation=False,
                  val_set=0.0,
@@ -519,6 +525,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.p_gs_crossover = p_gs_crossover
         self.p_gs_mutation = p_gs_mutation
         self.p_grasm_mutation = p_grasm_mutation
+        self.p_competent_mutation = p_competent_mutation
         self.gsm_ms = gsm_ms
         self.semantical_computation = semantical_computation
         self.val_set = val_set
@@ -543,9 +550,11 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         '''
         print("Checking for library...")
         try:
+            
             filename = open('procedureLibrary.pkl','rb')
             self.library = pickle.load(filename)
             return
+        
         except:
             pass
         print("Creating Procedures...")
@@ -561,7 +570,6 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                     terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(term, len(terms))]
                 else:
                     terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(len(terms))]
-            print(len(terms), print(len(X)))
             prgs = [program + term for term in terms]
             self.library = self.library + prgs
         self.library  = [(prg,_Program.execute_(prg,X)) for prg in self.library]
@@ -570,6 +578,20 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         print(">>>>>>>>>>>> Finnished")
         #self.function_set
         #self.n_features_
+        
+    def Oracle(self, desiredSemantics):
+        error = []
+        #Calculate the mean squared error
+        for procedure in self.library:
+            semantic = procedure[1].copy()
+            t = 0
+            for i in range(len(desiredSemantics)):
+                if desiredSemantics[i] != None:
+                    t += (desiredSemantics[i] - semantic[i])**2
+            t = t/len(semantic)
+            error.append(t)
+        #Return procedure with lowest error
+        return self.library[np.argmin(error)][0]
     
     def _verbose_reporter(self, run_details=None):
         """A report of the progress of the evolution process.
@@ -744,7 +766,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             raise ValueError('The sum of p_gs_crossover and p_gs_mutation must be equal to 1.0')
 
         self._method_probs = np.append(self._method_probs, np.array([self.p_gs_crossover, _gs_method_probs, self.gsm_ms]))
-        self._method_probs = np.append(self._method_probs, np.array([self.p_grasm_mutation]))        
+        self._method_probs = np.append(self._method_probs, np.array([self.p_grasm_mutation, self.p_competent_mutation]))        
         # Parameters for semantic stopping criteria
         if 0.0 < self.tie_stopping_criteria <= 1 and 0 < self.edv_stopping_criteria <= 1.0:
             raise ValueError('Only one semantic stopping criteria is allowed: TIE or EDV. '
@@ -813,7 +835,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         params['function_set'] = self._function_set
         params['arities'] = self._arities
         params['method_probs'] = self._method_probs
-
+        params["oracle"] = self.Oracle
         if not self.warm_start or not hasattr(self, '_programs'):
             # Free allocated memory, if any
             self._programs = []
@@ -855,9 +877,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         else:
             logger = None
         
-        #if grasm mutation create library
-        if self.p_grasm_mutation > 0:
-            self.createProcedureLibrary(X)
+        self.createProcedureLibrary(X)
         
         for gen in range(prior_generations, self.generations):
 
@@ -1276,6 +1296,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
                  p_grasm_mutation=0.0,
+                 p_competent_mutation=0.0,
                  gsm_ms=-1.0,
                  semantical_computation=False,
                  val_set=0.0,
@@ -1312,6 +1333,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             p_gs_crossover=p_gs_crossover,
             p_gs_mutation=p_gs_mutation,
             p_grasm_mutation=p_grasm_mutation,
+            p_competent_mutation=p_competent_mutation,
             gsm_ms=gsm_ms,
             semantical_computation=semantical_computation,
             val_set=val_set,
