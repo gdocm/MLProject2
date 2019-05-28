@@ -581,13 +581,13 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         
     def Oracle(self, desiredSemantics):
         error = []
-        #Calculate the mean squared error
+        #Calculate the mean absolute error
         for procedure in self.library:
             semantic = procedure[1].copy()
             t = 0
             for i in range(len(desiredSemantics)):
                 if desiredSemantics[i] != None:
-                    t += (desiredSemantics[i] - semantic[i])**2
+                    t += np.abs(desiredSemantics[i] - semantic[i])
             t = t/len(semantic)
             error.append(t)
         #Return procedure with lowest error
@@ -1274,8 +1274,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
     """
 
     def __init__(self,
-                 population_size=1000,
-                 generations=20,
+                 population_size=100,
+                 generations=100,
                  tournament_size=20,
                  stopping_criteria=0.0,
                  tie_stopping_criteria=0.0,
@@ -1287,12 +1287,12 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  edda_params=None,
                  function_set=('add', 'sub', 'mul', 'div'),
                  metric='mean absolute error',
-                 parsimony_coefficient=0.001,
+                 parsimony_coefficient=0.000,
                  p_crossover=0.9,
                  p_subtree_mutation=0.01,
-                 p_hoist_mutation=0.01,
-                 p_point_mutation=0.01,
-                 p_point_replace=0.05,
+                 p_hoist_mutation=0.0,
+                 p_point_mutation=0.0,
+                 p_point_replace=0.0,
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
                  p_grasm_mutation=0.0,

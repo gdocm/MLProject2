@@ -1,10 +1,19 @@
 import pandas as pd
 import numpy as np
 from data_loader import Dataset
-from data_preprocessing import Processor
+from data_preprocessing import PreProcessor
 from feature_engineering import FeatureEngineer
 from gplearn_MLAA.genetic import SymbolicRegressor
 from Models import model_runner
+import copy
+from Stage import Stage
+from CrossProcessor import CrossProcessor
+from Processor import Processor
+from Toolbox.DataExploration.missing_values import missing_value_reporter, impute_missing_values
+from Toolbox.DataExploration.OutlierExploration import z_score_outlier_detection, mahalanobis_distance_outlier
+from Toolbox.DataExploration.OutlierTreatment import uni_iqr_outlier_smoothing, drop_outliers
+from Toolbox.DataExploration.FeatureSelection import recursive_feature_elimination, pca_extraction
+
 
 data = pd.read_csv('Data\\data.csv')
 data.drop('Unnamed: 0', axis  = 1, inplace = True)
@@ -16,41 +25,65 @@ X_train = data.drop('mortality_rate',axis = 1)
 y_train = data['mortality_rate']
 target_var = 'mortality_rate'
 
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=0)
+#Preprocessing Stages
 
-training = X_train.copy()
-training[target_var] = y_train.copy()
-testing = X_test.copy()
-testing[target_var] = y_test.copy()
+missingValues = Stage('Missing Value Treatment')
+missingValues.addMethod(missing_value_reporter, ['impute'])
+missingValues.addMethod(missing_value_reporter, ['drop'])
 
-data = Dataset(training,testing,target_var)
-pr = Processor(data.training, data.testing, target_var, 0)
-fe = FeatureEngineer(pr.training, pr.unseen, target_var, 0)
+outlierExploration = Stage('Outlier Exploration')
+outlierExploration.addMethod(mahalanobis_distance_outlier, [drop_outliers])
+outlierExploration.addMethod(z_score_outlier_detection, [drop_outliers])
+outlierExploration.addMethod(z_score_outlier_detection, [uni_iqr_outlier_smoothing])
+
+featureSelection = Stage('Feature Selection')
+featureSelection.addMethod(recursive_feature_elimination, [5])
+featureSelection.addMethod(pca_extraction, [0.8])
+
+
+
 results = []
-
+test_results = []
 for seed in range(2):
-    temp = model_runner(pr.training.drop(target_var, axis = 1),pr.training[target_var], seed).scoresDict
-    if type(results) == dict:
-        for key in results.keys():
-            results[key] = [results[key]]
-            results[key].append(temp[key])
-    else:
-        results = temp
-
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=seed)
+    
+    training = X_train.copy()
+    training[target_var] = y_train.copy()
+    testing = X_test.copy()
+    testing[target_var] = y_test.copy()
+    
+    data = Dataset(training,testing,target_var)
+    
+    cxP = CrossProcessor(data.training.copy(), data.testing.copy(), target_var, random_state = seed, verbose = True)
+    cxP.addStages([missingValues,outlierExploration, featureSelection])
+    cxP.mixer()
+    results_combination = []
+    for combination in cxP.combinations:
+        
+        processor = cxP.process()
+        res = model_runner(processor.training,target_var, processor.testing,seed)
+        results_t = res.scoresDict
+        test_results_t = res.tscoresDict
+        if type(results) == dict:
+            for key in results.keys():
+                results[key] = [results[key]]
+                results[key].append(results_t[key])
+        else:
+            results = results_t
+            
+        if type(test_results) == dict:
+            for key in results.keys():
+                results[key] = [results[key]]
+                results[key].append(results_t[key])
+        else:
+            test_results = test_results
+        results_combination.append((results,test_results))
+        
 #Calulate the average of all seeds
-results = {k:np.mean(v) for k,v in results.items()}
 
-### Entroypy and Variance Tests
-#pheno
-def pheno_entropy(pop):
-    return np.sum([nmr_Ind_with_fitness*np.log(nmr_Ind_with_fitness) for fitness in unique_fitnesses])
-
-def geno_entropy(pop):
-    return np.sum([nmr_Ind_with_struct*np.log(nmr_Ind_with_struct) for struct in unique_structrs])
-
-def pheno_variance(pop):
-    return np.sum([(fitness -avg(fitnesses))**2 for fitness in fitnesses])/(len(fitnesses)-1)
-
-def geno_variance(pop):
-    return np.sum([(distance_o -avg(distances_o))**2 for distance_o in distances_o])/(len(distances_o)-1)
+save = copy.deepcopy(results)
+save2 = copy.deepcopy(test_results)
+for c in results_combination:
+    c[0]= {k: (np.mean(v), np.std(v)) for k,v in c[0].items()}
+    c[1]= {k: (np.mean(v), np.std(v)) for k,v in c[1].items()}

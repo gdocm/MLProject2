@@ -26,8 +26,7 @@ class Recorder:
         self.depth.append(self.avgDepth())
         self.length.append(self.avgLength())
         self.avgFitness.append(np.mean(self.fitness))
-        
-        
+                
     def phenoEntropy(self):
         unique_fitnesses, counts = np.unique(self.fitness, return_counts = True)
         return np.sum([counts[fitness]*np.log(counts[fitness]) for fitness in range(len(unique_fitnesses))])
