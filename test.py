@@ -33,8 +33,8 @@ missingValues.addMethod(missing_value_reporter, ['drop'])
 
 outlierExploration = Stage('Outlier Exploration')
 outlierExploration.addMethod(mahalanobis_distance_outlier, [drop_outliers])
-outlierExploration.addMethod(z_score_outlier_detection, [drop_outliers])
-outlierExploration.addMethod(z_score_outlier_detection, [uni_iqr_outlier_smoothing])
+outlierExploration.addMethod(z_score_outlier_detection, [0.03,drop_outliers])
+outlierExploration.addMethod(z_score_outlier_detection, [0.03,uni_iqr_outlier_smoothing])
 
 featureSelection = Stage('Feature Selection')
 featureSelection.addMethod(recursive_feature_elimination, [5])

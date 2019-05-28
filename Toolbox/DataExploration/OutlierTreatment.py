@@ -26,6 +26,7 @@ def uni_iqr_outlier_smoothing(self,DOAGO_results):
     return self
 
 def drop_outliers(self,outliers):
+    
     self.training.drop(index = list(outliers), inplace = True)
     return self
     

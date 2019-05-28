@@ -78,6 +78,7 @@ def pca_extraction(self,threshold = 0.8):
     testing_components[self.target_var] = self.testing[self.target_var]
     self.training = training_components
     self.testing = testing_components
+    print("Pca",self)
     return self
 
 def _drop_constant_features(self):
@@ -303,6 +304,7 @@ def recursive_feature_elimination(self, n):
     test[self.target_var] = self.testing[self.target_var]
     self.training = train
     self.testing = test
+    print("RFE",self)
     return self
 
 def anova_F_selection(self, vd, n):

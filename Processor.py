@@ -25,11 +25,11 @@ class Processor:
             for p in stages[i].params[comb[i]]:
                 temp.append(p)
             stages[i].params = [temp]
-            print(stages[i].params)
         self.comb = comb
         self.stages = stages
 
     def exec_(self):
+        print(self.comb)
         for i in range(len(self.stages)):
             stage = self.stages[i]
             if len(stage.functions) > 0:

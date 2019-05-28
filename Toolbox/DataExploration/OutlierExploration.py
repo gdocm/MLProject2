@@ -41,7 +41,7 @@ def z_score_outlier_detection(self, treshold, treatment_function):
                 except:
                     z_score_outliers[ind] = var
     for key in z_score_outliers.keys(): z_score_outliers[key] = z_score_outliers[key].split(' ')
-    treatment_function(self,z_score_outliers)
+    return treatment_function(self,z_score_outliers)
 
 def boxplot_outlier_detection(self, percent = 0.03, treshold=1.5, ranking = False):
     #self.report.append('_boxplot_outlier_detection')
