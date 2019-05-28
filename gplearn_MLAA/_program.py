@@ -753,6 +753,32 @@ class _Program(object):
         rcl = np.array(self.library)[np.array(distances) <= threshold]
         p = rcl[np.random.choice(len(rcl))][0]
         return self.program[:start] + p + self.program[end:]
+
+    def negation_mutation(self, random_state):
+        "The idea is to change the used function to it's opposite"
+
+        program = copy(self.program)
+        mutate = [i for i in range(len(program))]
+        opposite_function = {'add': _function_map['sub'],
+                            'sub': _function_map['add'],
+                            'mul': _function_map['div'],
+                            'div': _function_map['mul'],
+                            'max': _function_map['min'],
+                            'min': _function_map['max'],
+                            'abs': _function_map['neg'],
+                            'neg': _function_map['abs'],
+                            'log': _function_map['exp'],
+                            'exp': _function_map['log'],
+                            'sqrt': _function_map['power'],
+                            'power': _function_map['sqrt']}
+        for node in mutate:
+            if isinstance(program[node], _Function):
+                for name, function in opposite_function.items():
+                    if name == program[node].name:
+                        program[node] = function
+            else:
+                continue
+        return program, list(mutate)
     
     def gs_mutation_sig(self, ms, random_state):
         """Perform the Geometric Semantic operation on the program."""
