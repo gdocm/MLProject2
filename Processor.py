@@ -15,7 +15,8 @@ class Processor:
         numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
         self.numerical_vars = self.training.select_dtypes(include = numerics).columns
         self.categorical_vars = list(set(self.training.columns) - set(self.numerical_vars))
-    
+        self.seed = random_state
+        
     def addStages(self,stages,comb = (0,0,0)):
         for i in range(len(stages)):
             stages[i].processor = self

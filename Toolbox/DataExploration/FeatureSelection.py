@@ -9,7 +9,7 @@ from scipy.stats import stats, chi2_contingency
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import FactorAnalysis
 from sklearn.decomposition import FastICA
-from sklearn.decomposition import pca
+from sklearn.decomposition import PCA
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import RFE, SelectKBest, f_classif
 from sklearn.linear_model import LogisticRegression
@@ -18,6 +18,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import KBinsDiscretizer, MinMaxScaler,PowerTransformer
 from imblearn.over_sampling import SMOTENC,SMOTE,ADASYN
 from sklearn import preprocessing
+import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import KFold
@@ -57,6 +58,7 @@ def ica(self):
 def pca_extraction(self,threshold = 0.8):
     ds_training = self.training.copy().drop(self.target_var, axis = 1)
     ds_testing = self.testing.copy().drop(self.target_var, axis = 1)
+    pca = PCA(random_state = self.seed)
     train_components = pca.fit_transform(ds_training.values,10)
     explained = 0
     final_components = 0
@@ -70,12 +72,12 @@ def pca_extraction(self,threshold = 0.8):
     test_components = pca.transform(ds_testing.values)
     print(final_components)
     pca_components = test_components[:,:final_components]
-    testing_components = pd.DataFrame(pca_components, columns=['C_' + str(col) for col in range(final_components)],index=self.unseen.index)
-    training_components, testing_components = _normalize(self, training_components, testing_components)
+    testing_components = pd.DataFrame(pca_components, columns=['C_' + str(col) for col in range(final_components)],index=self.testing.index)
+    training_components, testing_components = _normalize(training_components, testing_components)
     training_components[self.target_var] = self.training[self.target_var]
-    testing_components[self.target_var] = self.unseen[self.target_var]
+    testing_components[self.target_var] = self.testing[self.target_var]
     self.training = training_components
-    self.unseen = testing_components
+    self.testing = testing_components
     return self
 
 def _drop_constant_features(self):

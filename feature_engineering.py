@@ -73,6 +73,7 @@ class FeatureEngineer:
     def pca_extraction(self,threshold = 0.8):
         ds_training = self.training.copy().drop(self.target_var, axis = 1)
         ds_testing == self.unseen.copy().drop(self.target_var, axis = 1)
+        pca = PCA(random_state = self.seed)
         train_components = pca.fit_transform(ds_training.values,10)
         explained = 0
         final_components = 0

@@ -19,13 +19,15 @@ class Recorder:
         self.population = None
         self.depth = []
         self.length = []
+        self.complexity = []
         
-    def compute_metrics(self):
+    def compute_metrics(self, X):
         self.pheno_entropy.append(self.phenoEntropy())
         self.pheno_variance.append(self.phenoVariance())
         self.depth.append(self.avgDepth())
         self.length.append(self.avgLength())
         self.avgFitness.append(np.mean(self.fitness))
+        #self.complexity.append(self.computeComplexity(X))
                 
     def phenoEntropy(self):
         unique_fitnesses, counts = np.unique(self.fitness, return_counts = True)
@@ -45,3 +47,25 @@ class Recorder:
     
     def avgLength(self):
         return np.mean([program._length() for program in self.population])
+    
+    def computeComplexity(self,X):
+
+        return np.mean(self.computeProgramComplexity(program,X) for program in self.population)
+            
+    def computeProgramComplexity(self, program, X):
+        
+        return np.sum([self.computePartialComplexity(program,X,j) for column in X.shape[1]])/X.shape[0]
+            
+    def computePartialComplexity(self, program, X, column):
+        semantics = self.execute()
+        p = X[column]
+        q = p.sort_values()
+        
+        sum_ = 0
+        for value in range(len(q)-2):
+            temp1 = (semantics[value + 1] - semantics[value])/(q[value+1]-q[value])
+            temp2 = (semantics[value + 2] - semantics[value+1])/(q[value+2]-q[value+1])
+            sum_ += np.abs(temp1 - temp2)
+        return sum_
+        
+        

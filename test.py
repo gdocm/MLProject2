@@ -64,26 +64,16 @@ for seed in range(2):
         processor = cxP.process()
         res = model_runner(processor.training,target_var, processor.testing,seed)
         results_t = res.scoresDict
-        test_results_t = res.tscoresDict
         if type(results) == dict:
             for key in results.keys():
                 results[key] = [results[key]]
                 results[key].append(results_t[key])
         else:
             results = results_t
-            
-        if type(test_results) == dict:
-            for key in results.keys():
-                results[key] = [results[key]]
-                results[key].append(results_t[key])
-        else:
-            test_results = test_results
-        results_combination.append((results,test_results))
+        results_combination.append(results)
         
 #Calulate the average of all seeds
 
 save = copy.deepcopy(results)
-save2 = copy.deepcopy(test_results)
 for c in results_combination:
-    c[0]= {k: (np.mean(v), np.std(v)) for k,v in c[0].items()}
-    c[1]= {k: (np.mean(v), np.std(v)) for k,v in c[1].items()}
+    c= {k: (np.mean(v), np.std(v)) for k,v in c[0].items()}

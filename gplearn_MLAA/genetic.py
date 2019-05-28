@@ -1004,7 +1004,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             
             self.recorder.fitness = fitness
             self.recorder.population = population
-            self.recorder.compute_metrics()
+            self.recorder.compute_metrics(X)
             
             val_fitness = np.nan
             if self.val_set > 0.0:
@@ -1287,7 +1287,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  edda_params=None,
                  function_set=('add', 'sub', 'mul', 'div'),
                  metric='mean absolute error',
-                 parsimony_coefficient=0.000,
+                 parsimony_coefficient=0.001,
                  p_crossover=0.9,
                  p_subtree_mutation=0.01,
                  p_hoist_mutation=0.0,

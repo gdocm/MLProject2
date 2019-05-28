@@ -111,8 +111,8 @@ class model_runner():
             
         #Hyper Parameter Optimization
         #Grid_Search
-        #for m in range(len(models)):
-        #    models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
+        for m in range(len(models)):
+            models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
         modelsStr.append('est_gp')
         #p_crossover=[0.1,0.4,0.6,0.9]
         #p_subtree=[0.9,0.6,0.4,0.1]  
@@ -133,7 +133,7 @@ class model_runner():
         self.scoresDict = dict(zip(modelsStr, scores))
         
         
-    def _gridSearchModel(self,model_name, model, param_grid, cv = 5):
+    def _gridSearchModel(self,model_name, model, param_grid, cv = 2):
         print(">>>>>>>>>>>> Optimizing " + model_name)
         pipeline = Pipeline([(model_name, model)])
         estimator = GridSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1,verbose = 1,scoring=self.metric)
@@ -164,5 +164,5 @@ class model_runner():
         estimator = SymbolicRegressor(**best)
         estimator.fit(self.training,self.labels)
         print(best)
-        return best
+        return estimator
         
