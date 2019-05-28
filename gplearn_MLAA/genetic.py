@@ -16,6 +16,8 @@ from time import time
 from warnings import warn
 import logging
 import numpy as np
+import statistics
+from sklearn.preprocessing import MinMaxScaler
 from joblib import Parallel, delayed
 from scipy.stats import rankdata
 from sklearn.base import BaseEstimator
@@ -309,6 +311,102 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
         else:
             parent_index = contenders[np.argmin(fitness)]
         return parents[parent_index], parent_index
+
+    def _nested_tournament(num):
+        "Several tournaments by fitness then we see the length"
+        pai_ind = []
+        for i in range(0, num):
+            parent, parent_index = _tournament()
+            pai_ind.append(parent_index)
+        length = [parents[p].length_ for p in pai_ind]
+        parent_index = pai_ind[np.argmax(length)]
+        return parents[parent_index], parent_index
+
+
+    def _double_tournament():
+        "With length and fitness"
+        contenders = random_state.randint(0, len(parents), tournament_size)
+        fitness = [parents[p].fitness_ for p in contenders]
+        length = [parents[p].length_ for p in contenders]
+        fit_len = np.array([fitness, length])
+        scaler = MinMaxScaler()
+        fit_len = fit_len.transpose()
+        fit_len = scaler.fit_transform(fit_len)
+        fit_len = fit_len.transpose()
+        if metric.greater_is_better:
+            fit_len[0] = (1 - fit_len[0])
+            fit_len[1] = (1 - fit_len[1])
+        else:
+            fit_len[1] = (1 - fit_len[1])
+        vals = np.divide(np.sum([fit_len[0], fit_len[1]], axis=0), 2.0)
+        ids = vals.argmax()
+
+        return parents[ids], ids
+
+
+    def _roulette_wheel():
+        "Roulette Wheel"
+        if metric.greater_is_better:
+            fitness = np.array([parents[p].fitness_ for p in range(0, len(parents))])
+        else:
+            fitness = np.array([1/parents[p].fitness_ for p in range(0, len(parents))])
+
+        sum_fit = np.sum(fitness)
+        probability_choice = np.divide(fitness, sum_fit)
+        probability_choice = probability_choice.sort()
+        cum_sum = np.cumsum(probability_choice)
+
+        value = random_state.uniform(0, 1)
+
+        ids_list = np.argwhere(cum_sum >= value)
+
+        return parents[ids_list[0][0]], ids_list[0][0]
+
+
+    def _ranking_sel():
+        "Ranking selection"
+        fitness = np.array([parents[p].fitness_ for p in range(0, len(parents))])
+        if metric.greater_is_better:
+            order = fitness.argsort()
+            ranks = order.argsort() + 1
+        else:
+            order = (-fitness).argsort()
+            ranks = order.argsort() + 1
+
+        sum_rank = np.sum(ranks)
+
+        probability_choice = np.divide(ranks, sum_rank)
+        cum_prob = np.cumsum(probability_choice)
+
+        value = random_state.uniform(0, 1)
+
+        ids_list = np.argwhere(cum_prob >= value)
+
+        return parents[ids_list[0][0]], ids_list[0][0]
+
+    def _semantic_tournament(pai_id):
+        "We receive the first parent. The second one is chosen based on the fitness and the distance to the first"
+        "Falta confirmar a distancia"
+        contenders = random_state.randint(0, len(parents), tournament_size)
+        fitness = [parents[p].fitness_ for p in contenders]
+        dists = []
+        #Getting the median
+        for i in range(0, len(contenders)):
+            dists.append(
+                np.std(a=np.abs(np.subtract(parents[pai_id].program[train_indices], parents[i].program[train_indices])),
+                       ddof=1))
+        mediana = statistics.median(dists)
+        #Getting random parent
+        pai2_id = contenders[0]
+        if metric.greater_is_better:
+            for i in range(0 , len(contenders)):
+                if((parents[i].fitness_ > parents[pai2_id].fitness_) and (mediana <= np.std(a=np.abs(np.subtract(parents[pai_id].program[train_indices], parents[i].program[train_indices])), ddof=1))):
+                    pai2_id = i
+        else:
+            for i in range(0 , len(contenders)):
+                if((parents[i].fitness_ < parents[pai2_id].fitness_) and (mediana <= np.std(a=np.abs(np.subtract(parents[pai_id].program[train_indices], parents[i].program[train_indices])), ddof=1))):
+                    pai2_id = i
+        return parents[pai2_id], pai2_id
 
     # Build programs
     programs = []
