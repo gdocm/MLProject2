@@ -315,6 +315,26 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             parent_index = contenders[np.argmin(fitness)]
         return parents[parent_index], parent_index
 
+
+    def _destabilization_tournament(des_prob):
+        """Find the fittest individual from a sub-population."""
+        contenders = random_state.randint(0, len(parents), tournament_size)
+        fitness = [parents[p].fitness_ for p in contenders]
+        
+        if random_state.uniform>des_prob:
+            if metric.greater_is_better:
+                parent_index = contenders[np.argmax(fitness)]
+            else:
+                parent_index = contenders[np.argmin(fitness)]
+        else:
+             if metric.greater_is_better:
+                parent_index = contenders[np.argmin(fitness)]
+            else:
+                parent_index = contenders[np.argmax(fitness)]
+        return parents[parent_index], parent_index
+
+
+
     def _nested_tournament(num = 3):
         "Several tournaments by fitness then we see the length"
         pai_ind = []
