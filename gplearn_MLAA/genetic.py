@@ -9,13 +9,15 @@ computer programs.
 # Author: Trevor Stephens <trevorstephens.com>
 #
 # License: BSD 3 clause
-
+import copy
 import itertools
 from abc import ABCMeta, abstractmethod
 from time import time
 from warnings import warn
 import logging
 import numpy as np
+import statistics
+from sklearn.preprocessing import MinMaxScaler
 from joblib import Parallel, delayed
 from scipy.stats import rankdata
 from sklearn.base import BaseEstimator
@@ -29,6 +31,7 @@ from .functions import _function_map, _Function, sig1 as sigmoid
 from .utils import _partition_estimators
 from .utils import check_random_state, NotFittedError
 from gplearn_MLAA.Recorder import Recorder
+from scipy.spatial.distance import euclidean
 import pickle
 from scipy.spatial.distance import euclidean
 
@@ -298,7 +301,8 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     feature_names = params['feature_names']
     semantical_computation = params["semantical_computation"]
     depth_probs = params["depth_probs"]
-    
+    oracle = params["oracle"]
+    selection_name = params["selection"]
     max_samples = int(max_samples * n_samples)
 
     def _tournament():
@@ -311,6 +315,125 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             parent_index = contenders[np.argmin(fitness)]
         return parents[parent_index], parent_index
 
+    def _nested_tournament(num = 3):
+        "Several tournaments by fitness then we see the length"
+        pai_ind = []
+        for i in range(0, num):
+            parent, parent_index = _tournament()
+            pai_ind.append(parent_index)
+        length = [parents[p].length_ for p in pai_ind]
+        parent_index = pai_ind[np.argmax(length)]
+        return parents[parent_index], parent_index
+
+
+    def _double_tournament():
+        "With length and fitness"
+        contenders = random_state.randint(0, len(parents), tournament_size)
+        fitness = [parents[p].fitness_ for p in contenders]
+        length = [parents[p].length_ for p in contenders]
+        fit_len = np.array([fitness, length])
+        scaler = MinMaxScaler()
+        fit_len = fit_len.transpose()
+        fit_len = scaler.fit_transform(fit_len)
+        fit_len = fit_len.transpose()
+        if metric.greater_is_better:
+            fit_len[0] = (1 - fit_len[0])
+            fit_len[1] = (1 - fit_len[1])
+        else:
+            fit_len[1] = (1 - fit_len[1])
+        vals = np.divide(np.sum([fit_len[0], fit_len[1]], axis=0), 2.0)
+        ids = vals.argmax()
+
+        return parents[ids], ids
+
+
+    def _roulette_wheel():
+        "Roulette Wheel"
+        if metric.greater_is_better:
+            fitness = np.array([parents[p].fitness_ for p in range(0, len(parents))])
+        else:
+            fitness = np.array([1/parents[p].fitness_ for p in range(0, len(parents))])
+
+        sum_fit = np.sum(fitness)
+        probability_choice = np.divide(fitness, sum_fit)
+        probability_choice.sort()
+        cum_sum = np.cumsum(probability_choice)
+        try:
+            if cum_sum == None:
+                raise Exception(np.divide(fitness, sum_fit),np.divide(fitness, sum_fit).sort())
+        except:
+            pass
+        value = random_state.uniform(0, 1)
+
+        ids_list = np.argwhere(cum_sum >= value)
+
+        return parents[ids_list[0][0]], ids_list[0][0]
+
+
+    def _ranking_sel():
+        "Ranking selection"
+        fitness = np.array([parents[p].fitness_ for p in range(0, len(parents))])
+        if metric.greater_is_better:
+            order = fitness.argsort()
+            ranks = order.argsort() + 1
+        else:
+            order = (-fitness).argsort()
+            ranks = order.argsort() + 1
+
+        sum_rank = np.sum(ranks)
+
+        probability_choice = np.divide(ranks, sum_rank)
+        cum_prob = np.cumsum(probability_choice)
+
+        value = random_state.uniform(0, 1)
+
+        ids_list = np.argwhere(cum_prob >= value)
+
+        return parents[ids_list[0][0]], ids_list[0][0]
+
+    def _semantic_tournament(pai_id):
+        "We receive the first parent. The second one is chosen based on the fitness and the distance to the first"
+        "Falta confirmar a distancia"
+        parents_temp = parents.copy()
+        parents_temp_ids = list(range(len(parents_temp)))
+        del parents_temp[pai_id]
+        del parents_temp_ids[pai_id]
+        
+        contenders = random_state.choice(parents_temp_ids, tournament_size)
+        dists = []
+        #Getting the median
+        
+        parent_semantics = parents[pai_id].execute(X)
+        other_semantics = []
+        for i in range(len(contenders)):
+            other_semantics.append(parents_temp[np.argwhere(parents_temp_ids == contenders[i])[0][0]].execute(X))
+            dists.append(euclidean(parent_semantics,other_semantics[-1] ))
+        mediana = statistics.median(dists)
+        #Getting random parent
+        pai2_id = contenders[0]
+        if metric.greater_is_better:
+            for i in range(len(contenders)):
+                if((parents_temp[np.argwhere(parents_temp_ids == contenders[i])[0][0]].fitness_ > parents[pai2_id].fitness_) and (mediana <= euclidean(parent_semantics, other_semantics[i]))):
+                    pai2_id = contenders[i]
+        else:
+            for i in range(len(contenders)):
+                if((parents_temp[np.argwhere(parents_temp_ids == contenders[i])[0][0]].fitness_ < parents[pai2_id].fitness_) and (mediana <= euclidean(parent_semantics, other_semantics[i]))):
+                    pai2_id = contenders[i]
+            
+        return parents[pai2_id], pai2_id
+
+    if selection_name == 'tournament':
+        selection = _tournament
+    elif selection_name == 'nested_tournament':
+        selection = _nested_tournament
+    elif selection_name == 'ranking':
+        selection = _ranking_sel
+    elif selection_name == 'double_tournament':
+        selection = _double_tournament
+    elif selection_name == 'roulette':
+        selection = _roulette_wheel
+    elif selection_name == 'semantic_tournament':
+        selection = _semantic_tournament
     # Build programs
     programs = []
 
@@ -322,10 +445,17 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             genome = None
         else:
             method = random_state.uniform()
-            parent, parent_index = _tournament()
+            if selection_name == 'semantic_tournament':
+                parent, parent_index = _tournament()
+            else:
+                parent, parent_index = selection()
+            
             if method < method_probs[0]:
                 # GP: swap crossover
-                donor, donor_index = _tournament()
+                if selection_name == 'semantic_tournament':
+                    donor, donor_index = selection(parent_index)
+                else:
+                    donor, donor_index = selection()
                 program, removed, remains = parent.crossover(donor.program, random_state, depth_probs)
                 genome = {'method': 'Crossover',
                           'parent_idx': parent_index,
@@ -352,7 +482,10 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_nodes': mutated}
             elif method < method_probs[4]:
                 # GS-crossover
-                donor, donor_index = _tournament()
+                if selection_name == 'semantic_tournament':
+                    donor, donor_index = selection(parent_index)
+                else:
+                    donor, donor_index = selection()
                 if semantical_computation:
                     program = parent.gs_crossover_semantics(X, donor, random_state)
                 else:
@@ -361,6 +494,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 genome = {'method': 'GS-Crossover',
                           'parent_idx': parent_index,
                           'donor_idx': donor_index}
+            #Change ids of method probs
             elif method < method_probs[5]:
                 # GS mutation
                 if method_probs[6] == -1:
@@ -378,6 +512,10 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             elif method < method_probs[7]:
                 program = parent.grasm_mutation(X, random_state, depth_probs = depth_probs)
                 genome = {'method':'Grasm-Mutation',
+                          'parent_idx':parent_index}
+            elif method < method_probs[8]:
+                program = parent.competent_mutation(X, y, oracle, random_state, depth_probs)
+                genome = {'method':'Competent-Mutation',
                           'parent_idx':parent_index}
             else:
                 # reproduction
@@ -456,10 +594,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
 
     @abstractmethod
     def __init__(self,
-                 population_size=1000,
+                 population_size=100,
                  hall_of_fame=None,
                  n_components=None,
-                 generations=20,
+                 generations=100,
                  tournament_size=20,
                  stopping_criteria=0.0,
                  tie_stopping_criteria=0.0,
@@ -481,6 +619,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
                  p_grasm_mutation = 0.0,
+                 p_competent_mutation = 0.0,
                  gsm_ms=-1.0,
                  semantical_computation=False,
                  val_set=0.0,
@@ -494,7 +633,11 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  random_state=None,
                  dynamic_depth = None,
                  depth_probs = False,
+<<<<<<< HEAD
                  hue_initialization_params=False):
+=======
+                 selection = 'tournament'):
+>>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
 
         self.population_size = population_size
         self.hall_of_fame = hall_of_fame
@@ -521,6 +664,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.p_gs_crossover = p_gs_crossover
         self.p_gs_mutation = p_gs_mutation
         self.p_grasm_mutation = p_grasm_mutation
+        self.p_competent_mutation = p_competent_mutation
         self.gsm_ms = gsm_ms
         self.semantical_computation = semantical_computation
         self.val_set = val_set
@@ -535,7 +679,11 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.dynamic_depth = dynamic_depth
         self.depth_probs = depth_probs
         self.library = None
+<<<<<<< HEAD
         self.hue_initialization_params=hue_initialization_params
+=======
+        self.selection = selection
+>>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
         
     def createProcedureLibrary(self, X):
         '''
@@ -546,9 +694,11 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         '''
         print("Checking for library...")
         try:
+            
             filename = open('procedureLibrary.pkl','rb')
             self.library = pickle.load(filename)
             return
+        
         except:
             pass
         print("Creating Procedures...")
@@ -564,7 +714,6 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                     terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(term, len(terms))]
                 else:
                     terms = [[terms[term],terms[term2]] for term in range(len(terms)) for term2 in range(len(terms))]
-            print(len(terms), print(len(X)))
             prgs = [program + term for term in terms]
             self.library = self.library + prgs
         self.library  = [(prg,_Program.execute_(prg,X)) for prg in self.library]
@@ -573,6 +722,20 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         print(">>>>>>>>>>>> Finnished")
         #self.function_set
         #self.n_features_
+        
+    def Oracle(self, desiredSemantics):
+        error = []
+        #Calculate the mean absolute error
+        for procedure in self.library:
+            semantic = procedure[1].copy()
+            t = 0
+            for i in range(len(desiredSemantics)):
+                if desiredSemantics[i] != None:
+                    t += np.abs(desiredSemantics[i] - semantic[i])
+            t = t/len(semantic)
+            error.append(t)
+        #Return procedure with lowest error
+        return self.library[np.argmin(error)][0]
     
     def _verbose_reporter(self, run_details=None):
         """A report of the progress of the evolution process.
@@ -747,7 +910,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             raise ValueError('The sum of p_gs_crossover and p_gs_mutation must be equal to 1.0')
 
         self._method_probs = np.append(self._method_probs, np.array([self.p_gs_crossover, _gs_method_probs, self.gsm_ms]))
-        self._method_probs = np.append(self._method_probs, np.array([self.p_grasm_mutation]))        
+        self._method_probs = np.append(self._method_probs, np.array([self.p_grasm_mutation, self.p_competent_mutation]))        
         # Parameters for semantic stopping criteria
         if 0.0 < self.tie_stopping_criteria <= 1 and 0 < self.edv_stopping_criteria <= 1.0:
             raise ValueError('Only one semantic stopping criteria is allowed: TIE or EDV. '
@@ -816,7 +979,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         params['function_set'] = self._function_set
         params['arities'] = self._arities
         params['method_probs'] = self._method_probs
-
+        params["oracle"] = self.Oracle
         if not self.warm_start or not hasattr(self, '_programs'):
             # Free allocated memory, if any
             self._programs = []
@@ -858,9 +1021,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         else:
             logger = None
         
-        #if grasm mutation create library
-        if self.p_grasm_mutation > 0:
-            self.createProcedureLibrary(X)
+        self.createProcedureLibrary(X)
         
         for gen in range(prior_generations, self.generations):
 
@@ -993,7 +1154,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             
             self.recorder.fitness = fitness
             self.recorder.population = population
-            self.recorder.compute_metrics()
+            self.recorder.compute_metrics(X)
             
             val_fitness = np.nan
             if self.val_set > 0.0:
@@ -1061,7 +1222,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                 self._program = self._programs[-1][np.argmax(fitness)]
             else:
                 self._program = self._programs[-1][np.argmin(fitness)]
-
+        
+        #self.recorder.ccomplex(X)
         return self
     
     
@@ -1313,8 +1475,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
     """
 
     def __init__(self,
-                 population_size=1000,
-                 generations=20,
+                 population_size=100,
+                 generations=100,
                  tournament_size=20,
                  stopping_criteria=0.0,
                  tie_stopping_criteria=0.0,
@@ -1329,12 +1491,13 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  parsimony_coefficient=0.001,
                  p_crossover=0.9,
                  p_subtree_mutation=0.01,
-                 p_hoist_mutation=0.01,
-                 p_point_mutation=0.01,
-                 p_point_replace=0.05,
+                 p_hoist_mutation=0.0,
+                 p_point_mutation=0.0,
+                 p_point_replace=0.0,
                  p_gs_crossover=0.0,
                  p_gs_mutation=0.0,
                  p_grasm_mutation=0.0,
+                 p_competent_mutation=0.0,
                  gsm_ms=-1.0,
                  semantical_computation=False,
                  val_set=0.0,
@@ -1348,7 +1511,11 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  random_state=None,
                  dynamic_depth = None,
                  depth_probs = False,
+<<<<<<< HEAD
                  hue_initialization_params=False):
+=======
+                 selection='tournament'):
+>>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
             generations=generations,
@@ -1372,6 +1539,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             p_gs_crossover=p_gs_crossover,
             p_gs_mutation=p_gs_mutation,
             p_grasm_mutation=p_grasm_mutation,
+            p_competent_mutation=p_competent_mutation,
             gsm_ms=gsm_ms,
             semantical_computation=semantical_computation,
             val_set=val_set,
@@ -1385,7 +1553,11 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             random_state=random_state,
             dynamic_depth = dynamic_depth,
             depth_probs = depth_probs,
+<<<<<<< HEAD
             hue_initialization_params=hue_initialization_params)
+=======
+            selection = selection)
+>>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
 
         self.recorder = Recorder(self.generations)
     def __str__(self):

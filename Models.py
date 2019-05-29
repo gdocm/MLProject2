@@ -9,19 +9,22 @@ from gplearn_MLAA.genetic import SymbolicRegressor
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn import metrics
 from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error,mean_absolute_error
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import Pipeline
+import itertools
 import copy
 
 ### MODELS
 class model_runner():
         
-    def __init__(self,training,labels,seed,metric = 'neg_mean_squared_error',cv = 5):
+    def __init__(self,training,labels,testing,seed,metric = 'neg_mean_absolute_error',cv = 5):
         
-        self.training = training
-        self.labels = labels
+        self.training = training.drop(labels, axis = 1)
+        self.labels = training[labels]
+        self.testing = testing.drop(labels, axis = 1)
+        self.labels_t = testing[labels]
         self.seed = seed
         self.metric = metric
         self.cv = cv
@@ -31,10 +34,10 @@ class model_runner():
         bagg = BaggingRegressor(random_state = self.seed)
         ada = AdaBoostRegressor(random_state = self.seed)
         clf = GradientBoostingRegressor(random_state = self.seed)
-        est_gp = SymbolicRegressor(random_state=self.seed)
         
-        models= [regr,bagg,ada,clf,est_gp]
-        modelsStr= ['regr','bagg','ada','clf','est_gp']
+        
+        models= [regr,bagg,ada,clf]
+        modelsStr= ['regr','bagg','ada','clf']
         
         #Parameter Grids
         param_grids = []
@@ -42,11 +45,11 @@ class model_runner():
         #Random Forest
         
         # Number of trees in random forest
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
         # Number of features to consider at every split
         max_features = ['auto', 'sqrt']
         # Maximum number of levels in tree
-        max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+        max_depth = [int(x) for x in np.linspace(10, 110, num = 4)]
         max_depth.append(None)
         # Minimum number of samples required to split a node
         min_samples_split = [2, 5, 10]
@@ -66,7 +69,7 @@ class model_runner():
         
         #Bagging Regressor
         name= modelsStr[1]
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
         # Method of selecting samples for training each tree
         bootstrap = [True, False]
         # Create the random grid
@@ -75,20 +78,20 @@ class model_runner():
     
         #Adaptive Boosting
         name = modelsStr[2]
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
-        learning_rate = [0.1,0.3,0.6,0.9]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
+        learning_rate = [0.1,0.5,0.9]
         # Create the random grid
         param_grids.append({name+'__n_estimators': n_estimators,
                         name+'__learning_rate': learning_rate})
     
         #Gradient Boosting
 
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
         # Number of features to consider at every split
         max_features = ['auto', 'sqrt']
-        learning_rate = [0.1,0.3,0.6,0.9]
+        learning_rate = [0.1,0.5,0.9]
         # Maximum number of levels in tree
-        max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+        max_depth = [int(x) for x in np.linspace(10, 110, num = 4)]
         max_depth.append(None)
         # Minimum number of samples required to split a node
         min_samples_split = [2, 5, 10]
@@ -104,48 +107,58 @@ class model_runner():
                        name+'__max_depth': max_depth,
                        name+'__min_samples_split': min_samples_split,
                        name+'__min_samples_leaf': min_samples_leaf})
-    
-        #Genetic Programming
-        population_size=[20,40,60]
-        generations=[20,40,100],
-        p_crossover=[0.1,0.3,0.6,0.9]
-        p_subtree=[0.9,0.6,0.3,0.1]  
-        name= modelsStr[4]
-        param_grids.append({name+'__population_size': population_size,
-               name+'__generations':generations,
-               name+'__p_crossover': p_crossover,
-               name+'__p_subtree_mutation': p_subtree,
-               name+'__p_gs_mutation':[0],
-               name+'__p_gs_crossover':[0],
-               name+'__p_hoist_mutation':[0],
-               name+'__p_point_mutation': [0]})
 
             
         #Hyper Parameter Optimization
         #Grid_Search
-        #for m in range(len(models)):
-        m = 4
-        models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
+        for m in range(len(models)):
+            models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
+        modelsStr.append('est_gp')
+        p_crossover=[0.1,0.5,0.9]
+        p_subtree=[0.9,0.5,0.1]  
+        rs = [self.seed] * 3
+        param_grid_gp = {
+               'p_crossover': p_crossover,
+               'p_subtree_mutation': p_subtree,
+               'random_state':rs}
         
+        models.append(self.gridSearchGp(param_grid_gp))
         scores = []
-        kf = KFold(5)
         for model in models:
-            model_scores= []
-            for train_index, test_index in kf.split(self.training):
-                model.fit(self.training.iloc[train_index],self.labels[train_index])
-                preds = model.predict(self.training.iloc[test_index])
-                model_scores.append(mean_squared_error(self.labels.iloc[test_index], preds))
-            model_scores = np.mean(model_scores)
-            scores.append(model_scores)
-        self.scoresDict = dict(zip(modelsStr, scores))
-        
+            preds = models[2].predict(self.testing)
+        scores.append(mean_absolute_error(self.labels_t, preds))
+        self.scoresDict = dict(zip(modelsStr[2], scores))
         
         
     def _gridSearchModel(self,model_name, model, param_grid, cv = 5):
         print(">>>>>>>>>>>> Optimizing " + model_name)
         pipeline = Pipeline([(model_name, model)])
-        print(self.training.dtypes)
-        print(self.labels.dtypes)
         estimator = GridSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1,verbose = 1,scoring=self.metric)
         estimator.fit(self.training, self.labels)
         return estimator
+    
+    def gridSearchGp(self,param_grid):
+        
+        parameters = list(param_grid.values())
+        comb = []
+        for i in range(len(parameters[0])):
+            t =  {}
+            for j in param_grid.keys():
+                t[j] = param_grid[j][i]
+            comb.append(t)
+        kf = KFold(5)
+        gp_results = {}
+        for c in range(len(comb)):
+            gp_results[c] = []
+        for train_index, test_index in kf.split(self.training):
+            for c in range(len(comb)):
+                est_gp = SymbolicRegressor(**comb[c])
+                est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
+                preds = est_gp.predict(self.training.iloc[test_index])
+                
+                gp_results[c] = mean_absolute_error(self.labels.iloc[test_index], preds)
+        best = comb[np.argmin([np.mean(gp_results[key]) for key in gp_results.keys()])]
+        estimator = SymbolicRegressor(**best)
+        estimator.fit(self.training,self.labels)
+        return estimator
+        

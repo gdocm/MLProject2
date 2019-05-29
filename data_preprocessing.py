@@ -25,7 +25,7 @@ import seaborn as sb
 from sklearn.cluster import KMeans
 
 
-class Processor:
+class PreProcessor:
     """ Performs data preprocessing
 
         The objective of this class is to preprocess the data based on training subset. The

@@ -5,6 +5,8 @@ Created on Wed May 22 19:17:56 2019
 @author: Guilherme
 """
 import numpy as np
+import pandas as pd
+import pickle
 
 class Recorder:
     
@@ -19,15 +21,23 @@ class Recorder:
         self.population = None
         self.depth = []
         self.length = []
+        self.complexity = []
+        self.gen = 0
         
-    def compute_metrics(self):
+    def compute_metrics(self, X):
         self.pheno_entropy.append(self.phenoEntropy())
         self.pheno_variance.append(self.phenoVariance())
         self.depth.append(self.avgDepth())
         self.length.append(self.avgLength())
         self.avgFitness.append(np.mean(self.fitness))
-        
-        
+        #self.savepopulation()
+        #self.complexity.append(self.computeComplexity(X))
+    
+    def savepopulation(self):
+        filename = open('pop'+str(self.gen)+'.pkl','wb')
+        pickle.dump(self.population, filename)
+        self.gen += 1
+    
     def phenoEntropy(self):
         unique_fitnesses, counts = np.unique(self.fitness, return_counts = True)
         return np.sum([counts[fitness]*np.log(counts[fitness]) for fitness in range(len(unique_fitnesses))])
@@ -46,3 +56,32 @@ class Recorder:
     
     def avgLength(self):
         return np.mean([program._length() for program in self.population])
+    
+    def ccomplex(self,X):
+        for i in range(self.generations):
+            filename = open('pop'+str(i)+'.pkl','rb')
+            self.population = pickle.load(filename)
+            self.complexity.append(self.computeComplexity(X))
+            
+    
+    def computeComplexity(self,X):
+        
+        return np.mean([self.computeProgramComplexity(program,X) for program in self.population])
+            
+    def computeProgramComplexity(self, program, X):
+        
+        return np.sum([self.computePartialComplexity(program,X,j) for j in range(X.shape[1])])/X.shape[1]
+            
+    def computePartialComplexity(self, program, X, column):
+        semantics = program.execute(X)
+        p_ = pd.DataFrame(X)[column]
+        q_ = p_.sort_values()
+        
+        sum_ = 0
+        for value in range(len(q_)-2):
+            temp1 = (semantics[value + 1] - semantics[value])/(q_[value+1]-q_[value])
+            temp2 = (semantics[value + 2] - semantics[value+1])/(q_[value+2]-q_[value+1])
+            sum_ += np.abs(temp1 - temp2)
+        return sum_
+        
+        

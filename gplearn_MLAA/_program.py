@@ -371,7 +371,7 @@ class _Program(object):
         else:
             return len(self.program)
 
-    def execute(self, X):
+    def execute(self, X, backP= False):
         """Execute the program according to X.
 
         Parameters
@@ -394,27 +394,35 @@ class _Program(object):
             return X[:, node]
 
         apply_stack = []
-
-        for node in self.program:
-
+        if backP:
+            semantics = []
+        for ix,node in enumerate(self.program):
             if isinstance(node, _Function):
-                apply_stack.append([node])
+                apply_stack.append([(node, ix)])
             else:
                 # Lazily evaluate later
-
                 apply_stack[-1].append(node)
 
-            while len(apply_stack[-1]) == apply_stack[-1][0].arity + 1:
+            while len(apply_stack[-1]) == apply_stack[-1][0][0].arity + 1:
                 # Apply functions that have sufficient arguments
-                function = apply_stack[-1][0]
+                function = apply_stack[-1][0][0]
+                i = apply_stack[-1][0][1]
+                
                 terminals = [np.repeat(t, X.shape[0]) if isinstance(t, float)
-                             else X[:, t] if isinstance(t, int)
+                             else X[:, t] if isinstance(t, int) or isinstance(t, np.int32)
                              else t for t in apply_stack[-1][1:]]
+                
                 intermediate_result = function(*terminals)
+
+                if backP:
+                    
+                    semantics.append((intermediate_result,i))
                 if len(apply_stack) != 1:
                     apply_stack.pop()
                     apply_stack[-1].append(intermediate_result)
                 else:
+                    if backP:
+                        return semantics
                     return intermediate_result
 
         # We should never get here
@@ -446,7 +454,6 @@ class _Program(object):
             return np.repeat(node, X.shape[0])
         if isinstance(node, int) or isinstance(node, np.int32):
             return X[:, node]
-
         apply_stack = []
         for node in program:
 
@@ -460,8 +467,9 @@ class _Program(object):
                 # Apply functions that have sufficient arguments
                 function = apply_stack[-1][0]
                 terminals = [np.repeat(t, X.shape[0]) if isinstance(t, float)
-                             else X[:, t] if isinstance(t, int)
+                             else X[:, t] if isinstance(t, int) or isinstance(t, np.int32)
                              else t for t in apply_stack[-1][1:]]
+                
                 intermediate_result = function(*terminals)
                 if len(apply_stack) != 1:
                     apply_stack.pop()
@@ -710,12 +718,13 @@ class _Program(object):
             else:
                 arities[-1] -= 1
                 depths.append(depth)
-                
             while arities[-1] == 0:
                 depth -= 1
                 del arities[-1]
                 if len(arities) == 0:
                     break
+            
+            
         return depths
     
     def gs_crossover(self, donor, random_state):
@@ -744,6 +753,32 @@ class _Program(object):
         rcl = np.array(self.library)[np.array(distances) <= threshold]
         p = rcl[np.random.choice(len(rcl))][0]
         return self.program[:start] + p + self.program[end:]
+
+    def negation_mutation(self, random_state):
+        "The idea is to change the used function to it's opposite"
+
+        program = copy(self.program)
+        mutate = [i for i in range(len(program))]
+        opposite_function = {'add': _function_map['sub'],
+                            'sub': _function_map['add'],
+                            'mul': _function_map['div'],
+                            'div': _function_map['mul'],
+                            'max': _function_map['min'],
+                            'min': _function_map['max'],
+                            'abs': _function_map['neg'],
+                            'neg': _function_map['abs'],
+                            'log': _function_map['exp'],
+                            'exp': _function_map['log'],
+                            'sqrt': _function_map['power'],
+                            'power': _function_map['sqrt']}
+        for node in mutate:
+            if isinstance(program[node], _Function):
+                for name, function in opposite_function.items():
+                    if name == program[node].name:
+                        program[node] = function
+            else:
+                continue
+        return program, list(mutate)
     
     def gs_mutation_sig(self, ms, random_state):
         """Perform the Geometric Semantic operation on the program."""
@@ -867,6 +902,120 @@ class _Program(object):
                 program[node] = terminal
 
         return program, list(mutate)
+    
+    def competent_mutation(self, X, y, oracle, random_state, depth_probs = False):
+        coords = self.programCoords()
+        old_semantics = self.execute(X, True)
+        start, end = self.get_subtree(random_state, depth_probs = depth_probs)
+        node = (self.program[start], coords[start])
+        new_semantics = self.semanticBackPropagation(y, node, X, coords, old_semantics)
+        node = oracle(new_semantics)
+        return self.program[:start] + node + self.program[end:]
+
+    def semanticBackPropagation(self, D, target, X, coords, old_semantics):
+        '''
+        Calculate desired semantics for target node
+        '''
+        #print("Performing semantic backpropagation")
+        node = (self.program[self.nodeByArity(target[1][0], coords)],[target[1][0]])
+        for s in range(len(D)): #For semantic in target semantics
+            s_ = D[s]
+            e = 0
+            while node != target:
+                e += 1
+
+
+                
+                ni = self.nextNode(node[1],target,coords)
+                x = (self.program[ni], coords[ni])
+                
+                #Set arities for the other node
+                if x[1][-1] == 1:
+                    temp = x[1].copy()
+                    temp[-1] = 0
+                elif x[1][-1] == 0:
+                    temp = x[1].copy()
+                    temp[-1] = 1
+                    
+                #Get semantics of the other node
+                other_i = self.nodeByArity(temp,coords)
+                other = self.program[other_i]
+                if isinstance(other, _Function):
+                    other = list(filter(lambda x: x[1] == other_i, old_semantics))[0][0]
+                    if not isinstance(other, int) and not isinstance(other, np.int32) and not isinstance(other, float):
+                        other = other[s]
+                elif isinstance(other,int) or isinstance(other, np.int32):
+                    other = X[s,other]
+
+                #Set position of sub-target node
+                k = x[1][-1]
+                
+                #Get new semantics of sub-target node
+                s_ = node[0].invert(k, s_, other)
+                node = x
+                
+                #Get Next Node
+                if e > 100:
+                    print("Program",self.program)
+                    print("Current Node:",node)
+                    print("Target Node:",target)
+                    raise(TypeError,"Stuck in loop")
+
+            D[s] = s_
+        return D
+                
+    def nextNode(self, node, target, coords):
+        '''
+        Returns the next node on the path to the target
+        '''
+        
+        n_coords = target[1]
+        if n_coords[-1] == 2:
+            del n_coords[-1]
+        if node[-1] == 2:
+            del node[-1]
+        
+        n_coords = list(np.array(n_coords)[:len(node)+1])
+        return self.nodeByArity(n_coords, coords)
+    
+    def nodeByArity(self,node_arity, coords):
+        '''
+        Returns index of node by arity list
+        '''
+        indexes = list(range(len(coords)))
+        coords = [tuple(coord) for coord in coords]
+        
+        dict_ = dict(zip(coords,indexes))
+        if isinstance(node_arity, int) or isinstance(node_arity, np.int32):
+            node_arity = [node_arity]
+        return dict_[tuple(node_arity)]
+    
+
+    
+    def programCoords(self):
+        arities = [-1,2]
+        coords = [[-1]]
+        for i in range(1, len(self.program)):
+            node = self.program[i]
+            if isinstance(node, _Function):
+                arities[-1] -= 1
+                arities.append(node.arity)
+            else:
+                arities[-1] -= 1
+            if arities[-1] == 2:
+                temp = arities.copy()
+                del temp[-1]
+                coords.append(temp.copy())
+            else:
+                coords.append(arities.copy())
+            while arities[-1] == 0:
+                del arities[-1]
+                if len(arities) == 0:
+                    break
+        #print("Coords", coords)
+        return coords
+            
+                    
 
     depth_ = property(_depth)
     length_ = property(_length)

@@ -35,14 +35,53 @@ class _Function(object):
         The number of arguments that the ``function`` takes.
 
     """
-
+    
     def __init__(self, function, name, arity):
         self.function = function
         self.name = name
         self.arity = arity
-
+        
     def __call__(self, *args):
-        return self.function(*args)
+        results = self.function(*args)
+        arg_ = [arg for arg in args]
+        
+        return results
+    
+    def invert(self, pos, result, other):
+        name = self.name
+        if name == 'add':
+            return result - other
+        elif name == 'sub':
+            if pos == 1:
+                return result + other
+            else:
+                return other - result
+        elif name == 'mul':
+            if other != None:
+                return result/other
+            else:
+                return 0.0001
+        elif name == 'div':
+            if pos == 1:
+                return result * other
+            else:
+                if result != 0:
+                    return other/result
+                else:
+                    return 0.0001
+        elif name == 'log':
+            return np.e**result
+        elif name == 'sin':
+            if result <= 1:
+                return np.arcsin(result)
+            else:
+                return 0.0001
+        elif name == 'cos':
+            if result <= 1:
+                return np.arccos(result)
+            else:
+                return 0.0001
+        return 0.0001
 
 
 def make_function(function, name, arity):
@@ -102,6 +141,8 @@ def make_function(function, name, arity):
                          'negatives in argument vectors.' % name)
 
     return _Function(function, name, arity)
+    
+    
 
 
 def _protected_division(x1, x2):
@@ -136,6 +177,7 @@ def _hyperbolic_tangent(x1):
     """Special case of hyperbolic tangent for GS-Mutation."""
     with np.errstate(over='ignore', under='ignore'):
         return np.tanh(x1)
+
 
 add2 = make_function(function=np.add, name='add', arity=2)
 sub2 = make_function(function=np.subtract, name='sub', arity=2)
