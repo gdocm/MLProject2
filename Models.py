@@ -146,7 +146,7 @@ class model_runner():
             for j in param_grid.keys():
                 t[j] = param_grid[j][i]
             comb.append(t)
-        kf = KFold(2)
+        kf = KFold(5)
         gp_results = {}
         for c in range(len(comb)):
             gp_results[c] = []

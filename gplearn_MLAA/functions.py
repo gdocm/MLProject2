@@ -44,13 +44,7 @@ class _Function(object):
     def __call__(self, *args):
         results = self.function(*args)
         arg_ = [arg for arg in args]
-        try:
-            if len(results) < 2:
-                print(results)
-                raise Exception("Length of intermediate_result is not 100")
-        except:
-            print(results, len(results))
-            raise Exception("Length of intermediate_result is not 100")
+        
         return results
     
     def invert(self, pos, result, other):
