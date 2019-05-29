@@ -83,8 +83,8 @@ for seed in range(5):
 
 #results_f = {key:np.array(results[0][key]) for key in results[0].keys()}
 #for seed in range(1,len(results)):
-    for key in results[seed].keys():
-        results_f[key]+=np.array(results[seed][key])
+#    for key in results[seed].keys():
+#        results_f[key]+=np.array(results[seed][key])
 #results_f = {key:results_f[key]/5 for key in results_f.keys()}
 
 #final_results ={key:[] for key in results[0].keys()}
