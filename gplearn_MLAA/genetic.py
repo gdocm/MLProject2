@@ -31,6 +31,7 @@ from .functions import _function_map, _Function, sig1 as sigmoid
 from .utils import _partition_estimators
 from .utils import check_random_state, NotFittedError
 from gplearn_MLAA.Recorder import Recorder
+from scipy.spatial.distance import euclidean
 import pickle
 
 __all__ = ['SymbolicRegressor', 'SymbolicClassifier', 'SymbolicTransformer']
@@ -300,6 +301,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     semantical_computation = params["semantical_computation"]
     depth_probs = params["depth_probs"]
     oracle = params["oracle"]
+    selection_name = params["selection"]
     max_samples = int(max_samples * n_samples)
 
     def _tournament():
@@ -312,7 +314,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             parent_index = contenders[np.argmin(fitness)]
         return parents[parent_index], parent_index
 
-    def _nested_tournament(num):
+    def _nested_tournament(num = 3):
         "Several tournaments by fitness then we see the length"
         pai_ind = []
         for i in range(0, num):
@@ -353,9 +355,13 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
 
         sum_fit = np.sum(fitness)
         probability_choice = np.divide(fitness, sum_fit)
-        probability_choice = probability_choice.sort()
+        probability_choice.sort()
         cum_sum = np.cumsum(probability_choice)
-
+        try:
+            if cum_sum == None:
+                raise Exception(np.divide(fitness, sum_fit),np.divide(fitness, sum_fit).sort())
+        except:
+            pass
         value = random_state.uniform(0, 1)
 
         ids_list = np.argwhere(cum_sum >= value)
@@ -387,27 +393,46 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     def _semantic_tournament(pai_id):
         "We receive the first parent. The second one is chosen based on the fitness and the distance to the first"
         "Falta confirmar a distancia"
-        contenders = random_state.randint(0, len(parents), tournament_size)
-        fitness = [parents[p].fitness_ for p in contenders]
+        parents_temp = parents.copy()
+        parents_temp_ids = list(range(len(parents_temp)))
+        del parents_temp[pai_id]
+        del parents_temp_ids[pai_id]
+        
+        contenders = random_state.choice(parents_temp_ids, tournament_size)
         dists = []
         #Getting the median
-        for i in range(0, len(contenders)):
-            dists.append(
-                np.std(a=np.abs(np.subtract(parents[pai_id].program[train_indices], parents[i].program[train_indices])),
-                       ddof=1))
+        
+        parent_semantics = parents[pai_id].execute(X)
+        other_semantics = []
+        for i in range(len(contenders)):
+            other_semantics.append(parents_temp[np.argwhere(parents_temp_ids == contenders[i])[0][0]].execute(X))
+            dists.append(euclidean(parent_semantics,other_semantics[-1] ))
         mediana = statistics.median(dists)
         #Getting random parent
         pai2_id = contenders[0]
         if metric.greater_is_better:
-            for i in range(0 , len(contenders)):
-                if((parents[i].fitness_ > parents[pai2_id].fitness_) and (mediana <= np.std(a=np.abs(np.subtract(parents[pai_id].program[train_indices], parents[i].program[train_indices])), ddof=1))):
-                    pai2_id = i
+            for i in range(len(contenders)):
+                if((parents_temp[np.argwhere(parents_temp_ids == contenders[i])[0][0]].fitness_ > parents[pai2_id].fitness_) and (mediana <= euclidean(parent_semantics, other_semantics[i]))):
+                    pai2_id = contenders[i]
         else:
-            for i in range(0 , len(contenders)):
-                if((parents[i].fitness_ < parents[pai2_id].fitness_) and (mediana <= np.std(a=np.abs(np.subtract(parents[pai_id].program[train_indices], parents[i].program[train_indices])), ddof=1))):
-                    pai2_id = i
+            for i in range(len(contenders)):
+                if((parents_temp[np.argwhere(parents_temp_ids == contenders[i])[0][0]].fitness_ < parents[pai2_id].fitness_) and (mediana <= euclidean(parent_semantics, other_semantics[i]))):
+                    pai2_id = contenders[i]
+            
         return parents[pai2_id], pai2_id
 
+    if selection_name == 'tournament':
+        selection = _tournament
+    elif selection_name == 'nested_tournament':
+        selection = _nested_tournament
+    elif selection_name == 'ranking':
+        selection = _ranking_sel
+    elif selection_name == 'double_tournament':
+        selection = _double_tournament
+    elif selection_name == 'roulette':
+        selection = _roulette_wheel
+    elif selection_name == 'semantic_tournament':
+        selection = _semantic_tournament
     # Build programs
     programs = []
 
@@ -419,10 +444,17 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             genome = None
         else:
             method = random_state.uniform()
-            parent, parent_index = _tournament()
+            if selection_name == 'semantic_tournament':
+                parent, parent_index = _tournament()
+            else:
+                parent, parent_index = selection()
+            
             if method < method_probs[0]:
                 # GP: swap crossover
-                donor, donor_index = _tournament()
+                if selection_name == 'semantic_tournament':
+                    donor, donor_index = selection(parent_index)
+                else:
+                    donor, donor_index = selection()
                 program, removed, remains = parent.crossover(donor.program, random_state, depth_probs)
                 genome = {'method': 'Crossover',
                           'parent_idx': parent_index,
@@ -449,7 +481,10 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_nodes': mutated}
             elif method < method_probs[4]:
                 # GS-crossover
-                donor, donor_index = _tournament()
+                if selection_name == 'semantic_tournament':
+                    donor, donor_index = selection(parent_index)
+                else:
+                    donor, donor_index = selection()
                 if semantical_computation:
                     program = parent.gs_crossover_semantics(X, donor, random_state)
                 else:
@@ -596,7 +631,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  log=False,
                  random_state=None,
                  dynamic_depth = None,
-                 depth_probs = False):
+                 depth_probs = False,
+                 selection = 'tournament'):
 
         self.population_size = population_size
         self.hall_of_fame = hall_of_fame
@@ -638,6 +674,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.dynamic_depth = dynamic_depth
         self.depth_probs = depth_probs
         self.library = None
+        self.selection = selection
         
     def createProcedureLibrary(self, X):
         '''
@@ -1408,7 +1445,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  log=False,
                  random_state=None,
                  dynamic_depth = None,
-                 depth_probs = False):
+                 depth_probs = False,
+                 selection='tournament'):
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
             generations=generations,
@@ -1445,7 +1483,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             log=log,
             random_state=random_state,
             dynamic_depth = dynamic_depth,
-            depth_probs = depth_probs)
+            depth_probs = depth_probs,
+            selection = selection)
 
         self.recorder = Recorder(self.generations)
     def __str__(self):

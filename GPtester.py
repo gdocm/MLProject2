@@ -38,18 +38,20 @@ data = Dataset(training,testing,target_var)
 pr = PreProcessor(data.training, data.testing, target_var, 0)
 fe = FeatureEngineer(pr.training, pr.unseen, target_var, 0)
 results = []
-
-
-est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 100, p_gs_mutation = 0,
-                           p_gs_crossover = 0.0,
-                           p_point_mutation = 0,
-                           p_hoist_mutation = 0,
-                           population_size = 100,
-                           p_crossover = 0.7,
-                           p_subtree_mutation = 0.3,
-                           depth_probs = True)
-
-est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
+selections = ['nested_tournament', 'ranking','double_tournament','roulette','semantic_tournament']
+for sel in selections:
+    print(sel)
+    est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 20, p_gs_mutation = 0,
+                               p_gs_crossover = 0.0,
+                               p_point_mutation = 0,
+                               p_hoist_mutation = 0,
+                               population_size = 30,
+                               p_crossover = 0.7,
+                               p_subtree_mutation = 0.3,
+                               depth_probs = False,
+                               selection = sel)
+    
+    est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
 
 preds = est_gp.predict(fe.unseen.drop(target_var, axis = 1))
 
