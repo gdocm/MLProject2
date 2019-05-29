@@ -50,20 +50,22 @@ class Processor:
         self.missing_value_reporter(self.training)
         self._impute_missing_values()
         
-        ###Outlier Analysis
-        #outliers = self._boxplot_outlier_detection()
-        outliers = self.extended_isolation_forest()
-        print(outliers)
-        outlier_percent = len(outliers)/self.training.shape[0]
-        if outlier_percent > 0.03:
-            print(">>>>>>> Warning, outlier percentage above 0.03 ("+ str(outlier_percent) + ")")
-            answer = input("Stop execution?")
-            if answer == 'yes':
-                raise("Too much outliers")
-        self.training.drop(index = [int(i) for i in outliers])
-        ###Normalization
-        
-        
+# =============================================================================
+#         ###Outlier Analysis
+#         #outliers = self._boxplot_outlier_detection()
+#         outliers = self.extended_isolation_forest()
+#         print(outliers)
+#         outlier_percent = len(outliers)/self.training.shape[0]
+#         if outlier_percent > 0.03:
+#             print(">>>>>>> Warning, outlier percentage above 0.03 ("+ str(outlier_percent) + ")")
+#             answer = input("Stop execution?")
+#             if answer == 'yes':
+#                 raise("Too much outliers")
+#         self.training.drop(index = [int(i) for i in outliers])
+#         ###Normalization
+#         
+#         
+# =============================================================================
 
 
     #DEALING WITH MISSING VALUES

@@ -30,6 +30,7 @@ from .utils import _partition_estimators
 from .utils import check_random_state, NotFittedError
 from gplearn_MLAA.Recorder import Recorder
 import pickle
+from scipy.spatial.distance import euclidean
 
 __all__ = ['SymbolicRegressor', 'SymbolicClassifier', 'SymbolicTransformer']
 
@@ -492,7 +493,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  log=False,
                  random_state=None,
                  dynamic_depth = None,
-                 depth_probs = False):
+                 depth_probs = False,
+                 hue_initialization_params=False):
 
         self.population_size = population_size
         self.hall_of_fame = hall_of_fame
@@ -533,6 +535,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.dynamic_depth = dynamic_depth
         self.depth_probs = depth_probs
         self.library = None
+        self.hue_initialization_params=hue_initialization_params
         
     def createProcedureLibrary(self, X):
         '''
@@ -867,7 +870,13 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                 if self.edda_params is not None:
                     # Use EDDA initialization
                     parents = _initialize_edda(params, self.population_size, X, y, sample_weight, train_indices,
-                                               val_indices, self.verbose, logger, random_state, self.n_jobs)
+                       val_indices, self.verbose, logger, random_state, self.n_jobs)
+                
+                elif self.hue_initialization_params:
+                    parents=self.hue_initialization(self.population_size,2,X,self.function_set,self._arities,self.init_depth,self.n_features_,self.metric,self.transformer,self.const_range,self.p_point_replace,
+                       self.parsimony_coefficient,self.feature_names,self.random_state,self.semantical_computation,self.library,self.init_method)
+
+                
                 else:
                     # Use standard initialization
                     parents = None
@@ -1054,6 +1063,56 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                 self._program = self._programs[-1][np.argmin(fitness)]
 
         return self
+    
+    
+    def hue_initialization(self,pop_size,radius,X,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
+                       parsimony_coefficient,feature_names,random_state,semantical_computation,library,init_method):
+        trees=[]
+        prog = _Program(function_set=function_set,
+                       arities=arities,
+                       init_depth=init_depth,
+                       init_method=init_method,
+                       n_features=n_features,
+                       metric=metric,
+                       transformer=transformer,
+                       const_range=const_range,
+                       p_point_replace=p_point_replace,
+                       parsimony_coefficient=parsimony_coefficient,
+                       feature_names=feature_names,
+                       random_state=random_state,
+                       program=None,
+                       semantical_computation=semantical_computation,
+                       library = library)
+        trees.append(prog)
+        while len(trees)<pop_size:
+            potential_tree=_Program(function_set=function_set,
+                       arities=arities,
+                       init_depth=init_depth,
+                       init_method=init_method,
+                       n_features=n_features,
+                       metric=metric,
+                       transformer=transformer,
+                       const_range=const_range,
+                       p_point_replace=p_point_replace,
+                       parsimony_coefficient=parsimony_coefficient,
+                       feature_names=feature_names,
+                       random_state=random_state,
+                       program=None,
+                       semantical_computation=semantical_computation,
+                       library = library)
+            found_tree=False
+            for tree in trees:
+                euc=euclidean(tree.execute(X),potential_tree.execute(X))
+                if euc<radius:
+                    found_tree=True
+                    break
+            if not found_tree:
+                trees.append(potential_tree)
+                
+        return trees
+
+    
+    
 
 
 class SymbolicRegressor(BaseSymbolic, RegressorMixin):
@@ -1288,7 +1347,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  log=False,
                  random_state=None,
                  dynamic_depth = None,
-                 depth_probs = False):
+                 depth_probs = False,
+                 hue_initialization_params=False):
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
             generations=generations,
@@ -1324,7 +1384,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             log=log,
             random_state=random_state,
             dynamic_depth = dynamic_depth,
-            depth_probs = depth_probs)
+            depth_probs = depth_probs,
+            hue_initialization_params=hue_initialization_params)
 
         self.recorder = Recorder(self.generations)
     def __str__(self):
@@ -1987,3 +2048,69 @@ class SymbolicTransformer(BaseSymbolic, TransformerMixin):
 
         """
         return self.fit(X, y, sample_weight).transform(X)
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+    
+def hamming_initialization(self,pop_size,radius,X,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
+                       parsimony_coefficient,feature_names,random_state,semantical_computation,library):
+    
+    trees=[]
+    prog = _Program(function_set=function_set,
+                   arities=arities,
+                   init_depth=init_depth,
+                   init_method=init_method,
+                   n_features=n_features,
+                   metric=metric,
+                   transformer=transformer,
+                   const_range=const_range,
+                   p_point_replace=p_point_replace,
+                   parsimony_coefficient=parsimony_coefficient,
+                   feature_names=feature_names,
+                   random_state=random_state,
+                   program=None,
+                   semantical_computation=semantical_computation,
+                   library = library)
+    trees.append(prog)
+    
+    
+    while len(trees)<pop_size:
+        potential_tree=_Program(function_set=function_set,
+                   arities=arities,
+                   init_depth=init_depth,
+                   init_method=init_method,
+                   n_features=n_features,
+                   metric=metric,
+                   transformer=transformer,
+                   const_range=const_range,
+                   p_point_replace=p_point_replace,
+                   parsimony_coefficient=parsimony_coefficient,
+                   feature_names=feature_names,
+                   random_state=random_state,
+                   program=None,
+                   semantical_computation=semantical_computation,
+                   library = library)
+        found_tree=False
+        lt_potential_tree=potential_tree.program
+        lt_potential_tree=[node.name if isinstance(node,_Function) else node for node in lt_potential_tree]
+        for tree in trees:
+            lt_tree=tree.program
+            lt_tree=[node.name if isinstance(node,_Function) else node for node in lt_tree]
+            dist=len([i for i, (a, b) in enumerate(zip(lt_potential_tree, lt_tree)) if a == b])
+            dist=dist/min(len(lt_potential_tree),len(lt_tree))
+            if dist<radius:
+                found_tree=True
+                break
+        if not found_tree:
+            trees.append(potential_tree)
+
+    return trees 
+    

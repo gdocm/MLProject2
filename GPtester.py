@@ -17,7 +17,7 @@ from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.pipeline import Pipeline
 import numpy as np
 
-data = pd.read_csv('Data\\data.csv')
+data = pd.read_csv('Data//data.csv')
 data.drop('Unnamed: 0', axis  = 1, inplace = True)
 
 entities = dict(zip(data.index, data['Entity']))
@@ -50,7 +50,8 @@ est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 200, p_gs_mu
                            p_subtree_mutation = 0.1,
                            p_grasm_mutation = 0.9,
                            dynamic_depth = True,
-                           depth_probs = True)
+                           depth_probs = True,
+                           hue_initialization_params=True)
 
 est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
 
