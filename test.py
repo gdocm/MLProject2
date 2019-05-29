@@ -79,21 +79,21 @@ for seed in range(5):
     
 #Calulate the average of all seeds
 
-save = copy.deepcopy(results)
+#save = copy.deepcopy(results)
 
-results_f = {key:np.array(results[0][key]) for key in results[0].keys()}
-for seed in range(1,len(results)):
+#results_f = {key:np.array(results[0][key]) for key in results[0].keys()}
+#for seed in range(1,len(results)):
     for key in results[seed].keys():
         results_f[key]+=np.array(results[seed][key])
-results_f = {key:results_f[key]/5 for key in results_f.keys()}
+#results_f = {key:results_f[key]/5 for key in results_f.keys()}
 
-final_results ={key:[] for key in results[0].keys()}
+#final_results ={key:[] for key in results[0].keys()}
 #For each combination
-for i in range(len(cxP.combinations)):
+#for i in range(len(cxP.combinations)):
     #for each seed
-    for j in range(5):
-        f = open('results_t'+str(j)+str(i)+'.pkl','rb')
-        r = pickle.load(f)
-        for key in r.keys():
-            final_results[key].append(r[key])
+#    for j in range(5):
+#        f = open('results_t'+str(j)+str(i)+'.pkl','rb')
+#        r = pickle.load(f)
+#        for key in r.keys():
+#            final_results[key].append(r[key])
     
