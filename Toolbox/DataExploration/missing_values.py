@@ -29,11 +29,14 @@ def missing_value_reporter(self,  method='impute', threshold = 0.03, report = Tr
     if report:
         print('\n Total Removed Rows (' + str(threshold) + '): ' + str(total_rows) + ' ' + str(round(percent*100,2)) +'%')
     if method == 'impute':
+        print("Impute")
         return impute_missing_values(self)
+        
     
     elif method == 'drop':
         self.training.dropna(inplace = True)
         self.testing.dropna(inplace = True)
+        print("Drop M")
         return self
 
 

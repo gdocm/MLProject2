@@ -78,7 +78,7 @@ def pca_extraction(self,threshold = 0.8):
     testing_components[self.target_var] = self.testing[self.target_var]
     self.training = training_components
     self.testing = testing_components
-    print("Pca",self)
+    print("Pca")
     return self
 
 def _drop_constant_features(self):
@@ -287,7 +287,9 @@ def ind_inf_gain(self, var, vd):
     return dict_gains
 
 def recursive_feature_elimination(self, n):
-    
+    if n == self.training.drop(self.target_var,axis = 1).shape[1]:
+        print("RFE no elimination")
+        return self
     'atencao que ha um parametro que ]e o numero de features que queremos ter... o default ]e metade!'
     ds = self.training
     X = self.training.copy().drop(self.target_var, axis = 1)
@@ -304,7 +306,7 @@ def recursive_feature_elimination(self, n):
     test[self.target_var] = self.testing[self.target_var]
     self.training = train
     self.testing = test
-    print("RFE",self)
+    print("RFE")
     return self
 
 def anova_F_selection(self, vd, n):

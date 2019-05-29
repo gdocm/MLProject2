@@ -23,10 +23,11 @@ def uni_iqr_outlier_smoothing(self,DOAGO_results):
                     novo_ds[var][novo_ds.index == key] = np.percentile(ds[var], 25) - 1.5 * iqr(ds[var])
             else: novo_ds=novo_ds[novo_ds.index!=key]
     self.training = novo_ds
+    print("SMMOTH")
     return self
 
 def drop_outliers(self,outliers):
-    
+    print("Drop Outliers")
     self.training.drop(index = list(outliers), inplace = True)
     return self
     

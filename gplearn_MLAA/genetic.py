@@ -9,7 +9,7 @@ computer programs.
 # Author: Trevor Stephens <trevorstephens.com>
 #
 # License: BSD 3 clause
-
+import copy
 import itertools
 from abc import ABCMeta, abstractmethod
 from time import time
@@ -458,7 +458,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 genome = {'method': 'GS-Crossover',
                           'parent_idx': parent_index,
                           'donor_idx': donor_index}
-            
+            #Change ids of method probs
             elif method < method_probs[5]:
                 # GS mutation
                 if method_probs[6] == -1:
@@ -558,10 +558,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
 
     @abstractmethod
     def __init__(self,
-                 population_size=1000,
+                 population_size=100,
                  hall_of_fame=None,
                  n_components=None,
-                 generations=20,
+                 generations=100,
                  tournament_size=20,
                  stopping_criteria=0.0,
                  tie_stopping_criteria=0.0,
@@ -1170,7 +1170,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                 self._program = self._programs[-1][np.argmax(fitness)]
             else:
                 self._program = self._programs[-1][np.argmin(fitness)]
-
+        
+        #self.recorder.ccomplex(X)
         return self
 
 

@@ -9,7 +9,7 @@ from gplearn_MLAA.genetic import SymbolicRegressor
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn import metrics
 from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error,mean_absolute_error
 import pandas as pd
 import numpy as np
 from sklearn.pipeline import Pipeline
@@ -45,11 +45,11 @@ class model_runner():
         #Random Forest
         
         # Number of trees in random forest
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
         # Number of features to consider at every split
         max_features = ['auto', 'sqrt']
         # Maximum number of levels in tree
-        max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+        max_depth = [int(x) for x in np.linspace(10, 110, num = 4)]
         max_depth.append(None)
         # Minimum number of samples required to split a node
         min_samples_split = [2, 5, 10]
@@ -69,7 +69,7 @@ class model_runner():
         
         #Bagging Regressor
         name= modelsStr[1]
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
         # Method of selecting samples for training each tree
         bootstrap = [True, False]
         # Create the random grid
@@ -78,20 +78,20 @@ class model_runner():
     
         #Adaptive Boosting
         name = modelsStr[2]
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
-        learning_rate = [0.1,0.3,0.6,0.9]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
+        learning_rate = [0.1,0.5,0.9]
         # Create the random grid
         param_grids.append({name+'__n_estimators': n_estimators,
                         name+'__learning_rate': learning_rate})
     
         #Gradient Boosting
 
-        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 10)]
+        n_estimators = [int(x) for x in np.linspace(start = 20, stop = 50, num = 4)]
         # Number of features to consider at every split
         max_features = ['auto', 'sqrt']
-        learning_rate = [0.1,0.3,0.6,0.9]
+        learning_rate = [0.1,0.5,0.9]
         # Maximum number of levels in tree
-        max_depth = [int(x) for x in np.linspace(10, 110, num = 11)]
+        max_depth = [int(x) for x in np.linspace(10, 110, num = 4)]
         max_depth.append(None)
         # Minimum number of samples required to split a node
         min_samples_split = [2, 5, 10]
@@ -114,12 +114,9 @@ class model_runner():
         for m in range(len(models)):
             models[m] = self._gridSearchModel(modelsStr[m], models[m], param_grids[m])
         modelsStr.append('est_gp')
-        #p_crossover=[0.1,0.4,0.6,0.9]
-        #p_subtree=[0.9,0.6,0.4,0.1]  
-        #rs = [self.seed] * 4
-        p_crossover=[0.1,0.4]
-        p_subtree=[0.9,0.6]  
-        rs = [self.seed] * 2
+        p_crossover=[0.1,0.5,0.9]
+        p_subtree=[0.9,0.5,0.1]  
+        rs = [self.seed] * 3
         param_grid_gp = {
                'p_crossover': p_crossover,
                'p_subtree_mutation': p_subtree,
@@ -128,12 +125,12 @@ class model_runner():
         models.append(self.gridSearchGp(param_grid_gp))
         scores = []
         for model in models:
-            preds = model.predict(self.testing)
-            scores.append(mean_squared_error(self.labels_t, preds))
-        self.scoresDict = dict(zip(modelsStr, scores))
+            preds = models[2].predict(self.testing)
+        scores.append(mean_absolute_error(self.labels_t, preds))
+        self.scoresDict = dict(zip(modelsStr[2], scores))
         
         
-    def _gridSearchModel(self,model_name, model, param_grid, cv = 2):
+    def _gridSearchModel(self,model_name, model, param_grid, cv = 5):
         print(">>>>>>>>>>>> Optimizing " + model_name)
         pipeline = Pipeline([(model_name, model)])
         estimator = GridSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1,verbose = 1,scoring=self.metric)
@@ -159,10 +156,9 @@ class model_runner():
                 est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
                 preds = est_gp.predict(self.training.iloc[test_index])
                 
-                gp_results[c] = mean_squared_error(self.labels.iloc[test_index], preds)
+                gp_results[c] = mean_absolute_error(self.labels.iloc[test_index], preds)
         best = comb[np.argmin([np.mean(gp_results[key]) for key in gp_results.keys()])]
         estimator = SymbolicRegressor(**best)
         estimator.fit(self.training,self.labels)
-        print(best)
         return estimator
         
