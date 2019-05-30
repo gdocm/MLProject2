@@ -29,10 +29,8 @@ target_var = 'mortality_rate'
 
 missingValues = Stage('Missing Value Treatment')
 missingValues.addMethod(missing_value_reporter, ['impute'])
-missingValues.addMethod(missing_value_reporter, ['drop'])
 
 outlierExploration = Stage('Outlier Exploration')
-outlierExploration.addMethod(z_score_outlier_detection, [0.03,drop_outliers])
 outlierExploration.addMethod(z_score_outlier_detection, [0.03,uni_iqr_outlier_smoothing])
 
 featureSelection = Stage('Feature Selection')

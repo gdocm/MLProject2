@@ -125,9 +125,9 @@ class model_runner():
         models.append(self.gridSearchGp(param_grid_gp))
         scores = []
         for model in models:
-            preds = models[2].predict(self.testing)
-        scores.append(mean_absolute_error(self.labels_t, preds))
-        self.scoresDict = dict(zip(modelsStr[2], scores))
+            preds = model.predict(self.testing)
+            scores.append(mean_absolute_error(self.labels_t, preds))
+        self.scoresDict = dict(zip(modelsStr, scores))
         
         
     def _gridSearchModel(self,model_name, model, param_grid, cv = 5):
