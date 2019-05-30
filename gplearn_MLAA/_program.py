@@ -742,18 +742,6 @@ class _Program(object):
         return (np.add(np.multiply(self.program, rt_semantics), np.multiply(np.subtract(1, rt_semantics), donor.program)),
                 offspring_length, offspring_depth)
     
-    def grasm_mutation(self, X, random_state, alpha = 0.5, depth_probs=False):
-        start, end = self.get_subtree(random_state, depth_probs = depth_probs)
-        p = self.program[start:end]
-        p_semantics = _Program.execute_(p,X)
-        distances = [euclidean(prgs[1], p_semantics) for prgs in self.library]
-        d_min = np.min(distances)
-        d_max = np.max(distances)
-        threshold = d_min + alpha*(d_max - d_min)
-        rcl = np.array(self.library)[np.array(distances) <= threshold]
-        p = rcl[np.random.choice(len(rcl))][0]
-        return self.program[:start] + p + self.program[end:]
-
     def negation_mutation(self, random_state):
         "The idea is to change the used function to it's opposite"
 
@@ -779,6 +767,18 @@ class _Program(object):
             else:
                 continue
         return program, list(mutate)
+    
+    def grasm_mutation(self, X, random_state, alpha = 0.5, depth_probs=False):
+        start, end = self.get_subtree(random_state, depth_probs = depth_probs)
+        p = self.program[start:end]
+        p_semantics = _Program.execute_(p,X)
+        distances = [euclidean(prgs[1], p_semantics) for prgs in self.library]
+        d_min = np.min(distances)
+        d_max = np.max(distances)
+        threshold = d_min + alpha*(d_max - d_min)
+        rcl = np.array(self.library)[np.array(distances) <= threshold]
+        p = rcl[np.random.choice(len(rcl))][0]
+        return self.program[:start] + p + self.program[end:]
     
     def gs_mutation_sig(self, ms, random_state):
         """Perform the Geometric Semantic operation on the program."""

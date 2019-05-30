@@ -303,6 +303,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     depth_probs = params["depth_probs"]
     oracle = params["oracle"]
     selection_name = params["selection"]
+    des_probs = params["destabilization_probs"]
     max_samples = int(max_samples * n_samples)
 
     def _tournament():
@@ -321,13 +322,13 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
         contenders = random_state.randint(0, len(parents), tournament_size)
         fitness = [parents[p].fitness_ for p in contenders]
         
-        if random_state.uniform>des_prob:
+        if random_state.uniform() > des_prob:
             if metric.greater_is_better:
                 parent_index = contenders[np.argmax(fitness)]
             else:
                 parent_index = contenders[np.argmin(fitness)]
         else:
-             if metric.greater_is_better:
+            if metric.greater_is_better:
                 parent_index = contenders[np.argmin(fitness)]
             else:
                 parent_index = contenders[np.argmax(fitness)]
@@ -454,6 +455,9 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
         selection = _roulette_wheel
     elif selection_name == 'semantic_tournament':
         selection = _semantic_tournament
+    elif selection_name == 'destabilization_tournament':
+        selection = _destabilization_tournament
+        
     # Build programs
     programs = []
 
@@ -467,6 +471,8 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             method = random_state.uniform()
             if selection_name == 'semantic_tournament':
                 parent, parent_index = _tournament()
+            elif selection_name == 'destabilization_tournament':
+                parent, parent_index = _destabilization_tournament(des_probs)
             else:
                 parent, parent_index = selection()
             
@@ -474,6 +480,8 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 # GP: swap crossover
                 if selection_name == 'semantic_tournament':
                     donor, donor_index = selection(parent_index)
+                elif selection_name == 'destabilization_tournament':
+                    donor, donor_index = _destabilization_tournament(des_probs)
                 else:
                     donor, donor_index = selection()
                 program, removed, remains = parent.crossover(donor.program, random_state, depth_probs)
@@ -501,9 +509,17 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_idx': parent_index,
                           'parent_nodes': mutated}
             elif method < method_probs[4]:
+                program, mutated = parent.negation_mutation(random_state)
+                genome = {'method':'Negation Mutation',
+                          'parent_idx':parent_index,
+                          'parent_nodes':mutated}
+                
+            elif method < method_probs[5]:
                 # GS-crossover
                 if selection_name == 'semantic_tournament':
                     donor, donor_index = selection(parent_index)
+                elif selection_name == 'destabilization_tournament':
+                    donor, donor_index = _destabilization_tournament(des_probs)
                 else:
                     donor, donor_index = selection()
                 if semantical_computation:
@@ -514,13 +530,13 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 genome = {'method': 'GS-Crossover',
                           'parent_idx': parent_index,
                           'donor_idx': donor_index}
-            #Change ids of method probs
-            elif method < method_probs[5]:
+            
+            elif method < method_probs[6]:
                 # GS mutation
-                if method_probs[6] == -1:
+                if method_probs[-1] == -1:
                     gsm_ms = method
                 else:
-                    gsm_ms = method_probs[6]
+                    gsm_ms = method_probs[-1]
                 if semantical_computation:
                     program = parent.gs_mutation_tanh_semantics(X, gsm_ms, random_state)
                 else:
@@ -533,6 +549,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 program = parent.grasm_mutation(X, random_state, depth_probs = depth_probs)
                 genome = {'method':'Grasm-Mutation',
                           'parent_idx':parent_index}
+                
             elif method < method_probs[8]:
                 program = parent.competent_mutation(X, y, oracle, random_state, depth_probs)
                 genome = {'method':'Competent-Mutation',
@@ -653,11 +670,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  random_state=None,
                  dynamic_depth = None,
                  depth_probs = False,
-<<<<<<< HEAD
-                 hue_initialization_params=False):
-=======
-                 selection = 'tournament'):
->>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
+                 hue_initialization_params=False,
+                 selection = 'tournament',
+                 destabilization_probs = 0.0,
+                 p_negation_mutation= 0.0):
 
         self.population_size = population_size
         self.hall_of_fame = hall_of_fame
@@ -699,11 +715,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.dynamic_depth = dynamic_depth
         self.depth_probs = depth_probs
         self.library = None
-<<<<<<< HEAD
         self.hue_initialization_params=hue_initialization_params
-=======
         self.selection = selection
->>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
+        self.destabilization_probs = destabilization_probs
+        self.p_negation_mutation = p_negation_mutation
         
     def createProcedureLibrary(self, X):
         '''
@@ -913,7 +928,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self._method_probs = np.array([self.p_crossover,
                                        self.p_subtree_mutation,
                                        self.p_hoist_mutation,
-                                       self.p_point_mutation])
+                                       self.p_point_mutation,
+                                       self.p_negation_mutation])
         self._method_probs = np.cumsum(self._method_probs)
 
         if self._method_probs[-1] < 0.0 or self._method_probs[-1] > 1.0:
@@ -921,16 +937,17 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                              'and p_point_mutation must be in [0.0, 1.0]')
 
         # Parameters for GS operators
-        _gs_method_probs = self.p_gs_crossover + self.p_gs_mutation
+        _gs_method_probs = [self.p_gs_crossover, self.p_gs_mutation, self.p_grasm_mutation, self.p_competent_mutation]
+        _gs_method_probs = np.cumsum(_gs_method_probs)
 
-        if _gs_method_probs > 0.0 and self._method_probs[-1] > 0.0:
+        if _gs_method_probs[-1] > 0.0 and self._method_probs[-1] > 0.0:
             raise ValueError('The user must to choose between standard GP and GS-GP operators.')
 
-        if _gs_method_probs != 1.0 and _gs_method_probs > 0:
+        if _gs_method_probs[-1] != 1.0 and _gs_method_probs[-1] > 0:
             raise ValueError('The sum of p_gs_crossover and p_gs_mutation must be equal to 1.0')
 
-        self._method_probs = np.append(self._method_probs, np.array([self.p_gs_crossover, _gs_method_probs, self.gsm_ms]))
-        self._method_probs = np.append(self._method_probs, np.array([self.p_grasm_mutation, self.p_competent_mutation]))        
+        self._method_probs = np.append(self._method_probs, _gs_method_probs )
+        self._method_probs = np.append(self._method_probs, np.array([self.gsm_ms]))
         # Parameters for semantic stopping criteria
         if 0.0 < self.tie_stopping_criteria <= 1 and 0 < self.edv_stopping_criteria <= 1.0:
             raise ValueError('Only one semantic stopping criteria is allowed: TIE or EDV. '
@@ -1000,6 +1017,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         params['arities'] = self._arities
         params['method_probs'] = self._method_probs
         params["oracle"] = self.Oracle
+        params["destabilization_probs"] = self.destabilization_probs
+        
         if not self.warm_start or not hasattr(self, '_programs'):
             # Free allocated memory, if any
             self._programs = []
@@ -1054,8 +1073,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                        val_indices, self.verbose, logger, random_state, self.n_jobs)
                 
                 elif self.hue_initialization_params:
-                    parents=self.hue_initialization(self.population_size,2,X,self.function_set,self._arities,self.init_depth,self.n_features_,self.metric,self.transformer,self.const_range,self.p_point_replace,
-                       self.parsimony_coefficient,self.feature_names,self.random_state,self.semantical_computation,self.library,self.init_method)
+                    parents=self.hue_initialization(self.population_size,2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
+                       self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
 
                 
                 else:
@@ -1247,7 +1266,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         return self
     
     
-    def hue_initialization(self,pop_size,radius,X,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
+    def hue_initialization(self,pop_size,radius,X,y,train_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
                        parsimony_coefficient,feature_names,random_state,semantical_computation,library,init_method):
         trees=[]
         prog = _Program(function_set=function_set,
@@ -1290,7 +1309,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                     break
             if not found_tree:
                 trees.append(potential_tree)
-                
+        
+        for tree in trees:
+            tree.raw_fitness_ = tree.raw_fitness(X[train_indices], y[train_indices], None)
+            tree.fitness_ = tree.fitness(parsimony_coefficient)
         return trees
 
     
@@ -1531,11 +1553,10 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  random_state=None,
                  dynamic_depth = None,
                  depth_probs = False,
-<<<<<<< HEAD
-                 hue_initialization_params=False):
-=======
-                 selection='tournament'):
->>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
+                 hue_initialization_params=False,
+                 selection='tournament',
+                 destabilization_probs=0.0,
+                 p_negation_mutation = 0.0):
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
             generations=generations,
@@ -1573,11 +1594,10 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             random_state=random_state,
             dynamic_depth = dynamic_depth,
             depth_probs = depth_probs,
-<<<<<<< HEAD
-            hue_initialization_params=hue_initialization_params)
-=======
-            selection = selection)
->>>>>>> 4390c4f21087049d15100817e2e90372a1bcec60
+            hue_initialization_params=hue_initialization_params,
+            selection = selection,
+            destabilization_probs = destabilization_probs,
+            p_negation_mutation = p_negation_mutation)
 
         self.recorder = Recorder(self.generations)
     def __str__(self):
