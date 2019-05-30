@@ -671,6 +671,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  dynamic_depth = None,
                  depth_probs = False,
                  hue_initialization_params=False,
+                 hamming_initialization=False,
                  selection = 'tournament',
                  destabilization_probs = 0.0,
                  p_negation_mutation= 0.0):
@@ -716,6 +717,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.depth_probs = depth_probs
         self.library = None
         self.hue_initialization_params=hue_initialization_params
+        self.hamming_initialization=hamming_initialization
         self.selection = selection
         self.destabilization_probs = destabilization_probs
         self.p_negation_mutation = p_negation_mutation
@@ -1075,7 +1077,9 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                 elif self.hue_initialization_params:
                     parents=self.hue_initialization(self.population_size,2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
                        self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
-
+                elif self.hamming_initialization:
+                    parents = initialize_hamming(self.population_size,2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
+                       self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
                 
                 else:
                     # Use standard initialization
@@ -1554,6 +1558,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  dynamic_depth = None,
                  depth_probs = False,
                  hue_initialization_params=False,
+                 hamming_initialization=False,
                  selection='tournament',
                  destabilization_probs=0.0,
                  p_negation_mutation = 0.0):
@@ -1595,6 +1600,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             dynamic_depth = dynamic_depth,
             depth_probs = depth_probs,
             hue_initialization_params=hue_initialization_params,
+            hamming_initialization = hamming_initialization,
             selection = selection,
             destabilization_probs = destabilization_probs,
             p_negation_mutation = p_negation_mutation)
@@ -2272,8 +2278,8 @@ class SymbolicTransformer(BaseSymbolic, TransformerMixin):
 
 
     
-def hamming_initialization(self,pop_size,radius,X,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
-                       parsimony_coefficient,feature_names,random_state,semantical_computation,library):
+def initialize_hamming(pop_size,radius,X,y,train_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
+                       parsimony_coefficient,feature_names,random_state,semantical_computation,library,init_method):
     
     trees=[]
     prog = _Program(function_set=function_set,
@@ -2316,13 +2322,16 @@ def hamming_initialization(self,pop_size,radius,X,function_set,arities,init_dept
         for tree in trees:
             lt_tree=tree.program
             lt_tree=[node.name if isinstance(node,_Function) else node for node in lt_tree]
-            dist=len([i for i, (a, b) in enumerate(zip(lt_potential_tree, lt_tree)) if a == b])
+            dist=len([i for i, (a, b) in enumerate(zip(lt_potential_tree, lt_tree)) if a != b])
             dist=dist/min(len(lt_potential_tree),len(lt_tree))
             if dist<radius:
                 found_tree=True
                 break
         if not found_tree:
             trees.append(potential_tree)
+    for tree in trees:
+        tree.raw_fitness_ = tree.raw_fitness(X[train_indices], y[train_indices], None)
+        tree.fitness_ = tree.fitness(parsimony_coefficient)
 
     return trees 
     

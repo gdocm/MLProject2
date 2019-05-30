@@ -50,7 +50,7 @@ est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 20, p_gs_mut
                            p_crossover = 0.7,
                            p_subtree_mutation = 0.3,
                            depth_probs = False,
-                           hue_initialization_params = True)
+                           hamming_initialization = True)
 
 est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
 
