@@ -1078,7 +1078,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                     parents=self.hue_initialization(self.population_size,2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
                        self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
                 elif self.hamming_initialization:
-                    parents = initialize_hamming(self.population_size,2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
+                    parents = initialize_hamming(self.population_size,0.2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
                        self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
                 
                 else:
@@ -2324,7 +2324,7 @@ def initialize_hamming(pop_size,radius,X,y,train_indices,function_set,arities,in
             lt_tree=[node.name if isinstance(node,_Function) else node for node in lt_tree]
             dist=len([i for i, (a, b) in enumerate(zip(lt_potential_tree, lt_tree)) if a != b])
             dist=dist/min(len(lt_potential_tree),len(lt_tree))
-            if dist<radius:
+            if dist>radius:
                 found_tree=True
                 break
         if not found_tree:
