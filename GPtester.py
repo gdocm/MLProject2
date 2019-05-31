@@ -43,7 +43,7 @@ results = []
 selections = ['nested_tournament', 'ranking','double_tournament','roulette','semantic_tournament', 'destabilization_tournament']
 #for sel in selections:
 #    print(sel)
-est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 100, p_gs_mutation = 0,
+est_gp = SymbolicRegressor(verbose=1, random_state = 0, generations = 100, p_gs_mutation = 0,
                            p_gs_crossover = 0.0,
                            p_point_mutation = 0,
                            p_hoist_mutation = 0,
@@ -61,10 +61,14 @@ preds = est_gp.predict(fe.unseen.drop(target_var, axis = 1))
 mean_squared_error(fe.unseen[target_var], preds)
 mean_absolute_error(fe.unseen[target_var], preds)
 #Pheno Entropy
-
 pe, = plt.plot(range(1,len(est_gp.recorder.pheno_entropy)), np.array(est_gp.recorder.pheno_entropy[1:])*-1)
 #Average Fitness
 af, = plt.plot(range(1,len(est_gp.recorder.avgFitness)), np.log(est_gp.recorder.avgFitness[1:]))
+#Average Val Fitness
+avf, = plt.plot(range(1,len(est_gp.recorder.avgValFitness)), np.log(est_gp.recorder.avgValFitness[1:]))
+#Difference
+diff = np.array(est_gp.recorder.avgFitness) - np.array(est_gp.recorder.avgValFitness)
+di, = plt.plot(range(1,len(diff)), diff[1:])
 #Pheno Variance
 pv, = plt.plot(range(1,len(est_gp.recorder.pheno_variance)), np.log(est_gp.recorder.pheno_variance[1:]))
 #Depth

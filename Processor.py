@@ -12,9 +12,6 @@ class Processor:
         self.training = training
         self.testing = testing
         self.target_var = target_var
-        numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
-        self.numerical_vars = self.training.select_dtypes(include = numerics).columns
-        self.categorical_vars = list(set(self.training.columns) - set(self.numerical_vars))
         self.seed = random_state
         
     def addStages(self,stages,comb = (0,0,0)):
@@ -29,7 +26,9 @@ class Processor:
         self.stages = stages
 
     def exec_(self):
-        print(self.comb)
+        numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+        self.numerical_vars = self.training.select_dtypes(include = numerics).columns
+        self.categorical_vars = list(set(self.training.columns) - set(self.numerical_vars))
         for i in range(len(self.stages)):
             stage = self.stages[i]
             if len(stage.functions) > 0:

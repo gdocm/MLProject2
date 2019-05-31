@@ -15,11 +15,14 @@ def missing_value_reporter(self,  method='impute', threshold = 0.03, report = Tr
     Reports on percentages of missing values per columns 
     returning columns above threshold
     '''
+    print(self,method)
     dataframe = self.training.copy()
     columns = []
     for column in dataframe.columns:
         percentage = round(np.sum(dataframe[column].isna())/dataframe.shape[0],2)
         percentage = percentage*100
+        if type(threshold) == str:
+            print(threshold)
         if percentage > threshold*100 and report:       
             print(column+': ' + ' ' + str(percentage) + '%')
         if percentage > threshold*100:

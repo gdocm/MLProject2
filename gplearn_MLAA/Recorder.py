@@ -14,6 +14,7 @@ class Recorder:
     def __init__(self, generations):
         self.generations = generations
         self.avgFitness = []
+        self.avgValFitness = []
         self.gen_entropy = []
         self.pheno_entropy = []
         self.gen_variance = []
@@ -23,6 +24,7 @@ class Recorder:
         self.depth = []
         self.length = []
         self.complexity = []
+        self.val_fitness_ = None
         self.gen = 0
         
     def compute_metrics(self, X):
@@ -31,6 +33,8 @@ class Recorder:
         self.depth.append(self.avgDepth())
         self.length.append(self.avgLength())
         self.avgFitness.append(np.mean(self.fitness))
+        if self.val_fitness_ is not None:
+            self.avgValFitness.append(np.mean(self.val_fitness_))
         #self.savepopulation()
         #self.complexity.append(self.computeComplexity(X))
     
@@ -43,13 +47,13 @@ class Recorder:
         unique_fitnesses, counts = np.unique(self.fitness, return_counts = True)
         return -np.sum([counts[fitness]*np.log(counts[fitness]) for fitness in range(len(unique_fitnesses))])
 
-    def genoEntropy(self, pop):
+    def genoEntropy(self):
         return np.sum([nmr_Ind_with_struct*np.log(nmr_Ind_with_struct) for struct in unique_structrs])
     
     def phenoVariance(self):
         return np.sum([(fitness -np.mean(self.fitness))**2 for fitness in self.fitness])/(len(self.fitness)-1)
     
-    def genoVariance(self, pop):
+    def genoVariance(self):
         return np.sum([(distance_o -avg(distances_o))**2 for distance_o in distances_o])/(len(distances_o)-1)
         
     def avgDepth(self):

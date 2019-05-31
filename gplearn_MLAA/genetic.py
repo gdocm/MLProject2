@@ -1078,10 +1078,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                        val_indices, self.verbose, logger, random_state, self.n_jobs)
                 
                 elif self.hue_initialization_params:
-                    parents=self.hue_initialization(self.population_size,2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
+                    parents=self.hue_initialization(self.population_size,2,X,y,train_indices,val_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
                        self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
                 elif self.hamming_initialization:
-                    parents = initialize_hamming(self.population_size,0.2,X,y,train_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
+                    parents = initialize_hamming(self.population_size,0.2,X,y,train_indices,val_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
                        self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
                 
                 else:
@@ -1112,7 +1112,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
 
             # Reduce, maintaining order across different n_jobs
             population = list(itertools.chain.from_iterable(population))
-            
+            if val_indices is not None:
+                valfitness = [program.val_fitness_ for program in population]
             fitness = [program.raw_fitness_ for program in population]
             length = [program.length_ for program in population]
             
@@ -1200,6 +1201,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             
             self.recorder.fitness = fitness
             self.recorder.population = population
+            if val_indices is not None:
+                self.recorder.val_fitness_ = valfitness
             fp = open('pop'+str(gen)+'.pkl','wb')
             pickle.dump(population,fp)
             self.recorder.compute_metrics(X)
@@ -1271,11 +1274,11 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             else:
                 self._program = self._programs[-1][np.argmin(fitness)]
         
-        self.recorder.ccomplex(X)
+        #self.recorder.ccomplex(X)
         return self
     
     
-    def hue_initialization(self,pop_size,radius,X,y,train_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
+    def hue_initialization(self,pop_size,radius,X,y,train_indices,val_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
                        parsimony_coefficient,feature_names,random_state,semantical_computation,library,init_method):
         trees=[]
         prog = _Program(function_set=function_set,
@@ -1322,6 +1325,9 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         for tree in trees:
             tree.raw_fitness_ = tree.raw_fitness(X[train_indices], y[train_indices], None)
             tree.fitness_ = tree.fitness(parsimony_coefficient)
+            if val_indices is not None:
+                # Calculate validation fitness
+                tree.val_fitness_ = tree.raw_fitness(X[val_indices], y[val_indices], None)
         return trees
 
     
@@ -2283,7 +2289,7 @@ class SymbolicTransformer(BaseSymbolic, TransformerMixin):
 
 
     
-def initialize_hamming(pop_size,radius,X,y,train_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
+def initialize_hamming(pop_size,radius,X,y,train_indices,val_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
                        parsimony_coefficient,feature_names,random_state,semantical_computation,library,init_method):
     
     trees=[]
@@ -2337,6 +2343,8 @@ def initialize_hamming(pop_size,radius,X,y,train_indices,function_set,arities,in
     for tree in trees:
         tree.raw_fitness_ = tree.raw_fitness(X[train_indices], y[train_indices], None)
         tree.fitness_ = tree.fitness(parsimony_coefficient)
-
+        if val_indices is not None:
+            # Calculate validation fitness
+            tree.val_fitness_ = tree.raw_fitness(X[val_indices], y[val_indices], None)
     return trees 
     
