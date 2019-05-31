@@ -509,6 +509,7 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_idx': parent_index,
                           'parent_nodes': mutated}
             elif method < method_probs[4]:
+                #neagation_mutation
                 program, mutated = parent.negation_mutation(random_state)
                 genome = {'method':'Negation Mutation',
                           'parent_idx':parent_index,
@@ -546,11 +547,13 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_idx': parent_index}
                 
             elif method < method_probs[7]:
+                #Grasm Mutation
                 program = parent.grasm_mutation(X, random_state, depth_probs = depth_probs)
                 genome = {'method':'Grasm-Mutation',
                           'parent_idx':parent_index}
                 
             elif method < method_probs[8]:
+                #Competent Mutation
                 program = parent.competent_mutation(X, y, oracle, random_state, depth_probs)
                 genome = {'method':'Competent-Mutation',
                           'parent_idx':parent_index}
@@ -1197,6 +1200,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             
             self.recorder.fitness = fitness
             self.recorder.population = population
+            fp = open('pop'+str(gen)+'.pkl','wb')
+            pickle.dump(population,fp)
             self.recorder.compute_metrics(X)
             
             val_fitness = np.nan
@@ -1266,7 +1271,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             else:
                 self._program = self._programs[-1][np.argmin(fitness)]
         
-        #self.recorder.ccomplex(X)
+        self.recorder.ccomplex(X)
         return self
     
     

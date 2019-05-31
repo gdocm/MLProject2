@@ -7,6 +7,7 @@ Created on Wed May 22 19:17:56 2019
 import numpy as np
 import pandas as pd
 import pickle
+import math
 
 class Recorder:
     
@@ -40,7 +41,7 @@ class Recorder:
     
     def phenoEntropy(self):
         unique_fitnesses, counts = np.unique(self.fitness, return_counts = True)
-        return np.sum([counts[fitness]*np.log(counts[fitness]) for fitness in range(len(unique_fitnesses))])
+        return -np.sum([counts[fitness]*np.log(counts[fitness]) for fitness in range(len(unique_fitnesses))])
 
     def genoEntropy(self, pop):
         return np.sum([nmr_Ind_with_struct*np.log(nmr_Ind_with_struct) for struct in unique_structrs])
@@ -81,7 +82,13 @@ class Recorder:
         for value in range(len(q_)-2):
             temp1 = (semantics[value + 1] - semantics[value])/(q_[value+1]-q_[value])
             temp2 = (semantics[value + 2] - semantics[value+1])/(q_[value+2]-q_[value+1])
-            sum_ += np.abs(temp1 - temp2)
+            r = np.abs(temp1 - temp2)
+            if r == np.inf or math.isnan(r):
+                r = 0.0000000000001
+            
+            sum_ += r
+        if math.isnan(sum_) or sum_ == np.inf:
+            raise Exception(sum_)
         return sum_
         
         

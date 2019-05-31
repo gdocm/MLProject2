@@ -15,6 +15,7 @@ import seaborn as sb
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.pipeline import Pipeline
 import numpy as np
+import matplotlib.pyplot as plt
 
 data = pd.read_csv('Data//data.csv')
 data.drop('Unnamed: 0', axis  = 1, inplace = True)
@@ -42,15 +43,15 @@ results = []
 selections = ['nested_tournament', 'ranking','double_tournament','roulette','semantic_tournament', 'destabilization_tournament']
 #for sel in selections:
 #    print(sel)
-est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 20, p_gs_mutation = 0,
+est_gp = SymbolicRegressor(verbose=1, random_state=0, generations = 100, p_gs_mutation = 0,
                            p_gs_crossover = 0.0,
                            p_point_mutation = 0,
                            p_hoist_mutation = 0,
-                           population_size = 30,
+                           population_size = 100,
                            p_crossover = 0.7,
                            p_subtree_mutation = 0.3,
                            depth_probs = False,
-                           hamming_initialization = True)
+                           hamming_initialization = False,val_set=0.2)
 
 est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
 
@@ -59,8 +60,16 @@ preds = est_gp.predict(fe.unseen.drop(target_var, axis = 1))
 
 mean_squared_error(fe.unseen[target_var], preds)
 mean_absolute_error(fe.unseen[target_var], preds)
+#Pheno Entropy
 
-sb.lineplot(x = range(0,len(est_gp.recorder.pheno_entropy)), y = est_gp.recorder.pheno_entropy)
-sb.lineplot(x = range(0,len(est_gp.recorder.avgFitness)), y = np.log(est_gp.recorder.avgFitness))
-sb.lineplot(x = range(0,len(est_gp.recorder.pheno_variance)), y = np.log(est_gp.recorder.pheno_variance))
-sb.lineplot(x = range(0,len(est_gp.recorder.depth)), y = est_gp.recorder.depth)
+pe, = plt.plot(range(1,len(est_gp.recorder.pheno_entropy)), np.array(est_gp.recorder.pheno_entropy[1:])*-1)
+#Average Fitness
+af, = plt.plot(range(1,len(est_gp.recorder.avgFitness)), np.log(est_gp.recorder.avgFitness[1:]))
+#Pheno Variance
+pv, = plt.plot(range(1,len(est_gp.recorder.pheno_variance)), np.log(est_gp.recorder.pheno_variance[1:]))
+#Depth
+d, = plt.plot( range(1,len(est_gp.recorder.depth)), est_gp.recorder.depth[1:])
+#Complexity
+c, = plt.plot( range(1,len(est_gp.recorder.complexity)), np.log(est_gp.recorder.complexity[1:]))
+plt.legend([pe,af,pv,d,c],['Pheno Entropy','Average Fitness','Pheno Variance','Depth','Complexity'])
+plt.show()
