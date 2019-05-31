@@ -26,6 +26,8 @@ class Recorder:
         self.complexity = []
         self.val_fitness_ = None
         self.gen = 0
+        self.bestFitnessArr = []
+        self.best_fitness = None
         
     def compute_metrics(self, X):
         self.pheno_entropy.append(self.phenoEntropy())
@@ -35,6 +37,7 @@ class Recorder:
         self.avgFitness.append(np.mean(self.fitness))
         if self.val_fitness_ is not None:
             self.avgValFitness.append(np.mean(self.val_fitness_))
+        self.bestFitnessArr.append(self.best_fitness)
         #self.savepopulation()
         #self.complexity.append(self.computeComplexity(X))
     

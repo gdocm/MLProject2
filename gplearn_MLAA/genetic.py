@@ -210,7 +210,7 @@ def _get_semantic_stopping_criteria(n_semantic_neighbors, elite, X, y, sample_we
     p_point_replace = params['p_point_replace']
     max_samples = params['max_samples']
     feature_names = params['feature_names']
-
+    num = params['num']
     # Define the counter for number of better semantic neighbors
     n_better_semantic_neighbors = 0
     # Define counter for number of better semantic neighbors with smaller EDV
@@ -457,7 +457,6 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
         selection = _semantic_tournament
     elif selection_name == 'destabilization_tournament':
         selection = _destabilization_tournament
-        
     # Build programs
     programs = []
 
@@ -677,7 +676,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  hamming_initialization=False,
                  selection = 'tournament',
                  destabilization_probs = 0.0,
-                 p_negation_mutation= 0.0):
+                 p_negation_mutation= 0.0,
+                 num = 3):
 
         self.population_size = population_size
         self.hall_of_fame = hall_of_fame
@@ -724,7 +724,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.selection = selection
         self.destabilization_probs = destabilization_probs
         self.p_negation_mutation = p_negation_mutation
-        
+        self.num = num
     def createProcedureLibrary(self, X):
         '''
         
@@ -1023,6 +1023,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         params['method_probs'] = self._method_probs
         params["oracle"] = self.Oracle
         params["destabilization_probs"] = self.destabilization_probs
+        params["num"] = self.num
         
         if not self.warm_start or not hasattr(self, '_programs'):
             # Free allocated memory, if any
@@ -1201,6 +1202,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             
             self.recorder.fitness = fitness
             self.recorder.population = population
+            self.best_fitness = best_program.raw_fitness_
             if val_indices is not None:
                 self.recorder.val_fitness_ = valfitness
             fp = open('pop'+str(gen)+'.pkl','wb')
@@ -1572,7 +1574,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  hamming_initialization=False,
                  selection='tournament',
                  destabilization_probs=0.0,
-                 p_negation_mutation = 0.0):
+                 p_negation_mutation = 0.0,
+                 num = 3):
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
             generations=generations,
@@ -1614,7 +1617,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             hamming_initialization = hamming_initialization,
             selection = selection,
             destabilization_probs = destabilization_probs,
-            p_negation_mutation = p_negation_mutation)
+            p_negation_mutation = p_negation_mutation,
+            num = num)
 
         self.recorder = Recorder(self.generations)
     def __str__(self):
