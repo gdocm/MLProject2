@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri May 31 22:10:10 2019
+Created on Sat Jun  1 14:08:38 2019
 
 @author: Guilherme
 """
@@ -16,7 +16,6 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 import itertools
 import copy
-import pickle
 
 ### MODELS
 class model_runner():
@@ -40,15 +39,7 @@ class model_runner():
         selection = ['destabilization_tournament']*6
         des_probs = [0.1]*6
         crossover = []
-        #Normal Crossovers
-        
-        crossover.append({'p_crossover':0.1,'p_subtree_mutation':0.9})
-        crossover.append({'p_crossover':0.1, 'p_subtree_mutation':0.9, 'depth_probs':True})
-        crossover.append({'p_selective_crossover':0.1,'p_subtree_mutation':0.9})
-        crossover.append({'p_selective_crossover':0.1,'p_subtree_mutation':0.9, 'depth_probs':True})
-        #Semantic Crossovers
-        crossover.append({'p_gs_crossover':0.1, 'p_gs_mutation':0.9})
-        crossover.append({'p_gs_crossover':0.1,'p_gs_mutation':0.9, 'depth_probs':True})
+        mutations = []
         rs = [self.seed] * 6
         
         param_grid_gp = {
@@ -89,8 +80,7 @@ class model_runner():
                 preds = est_gp.predict(self.training.iloc[test_index])   
                 combination_results.append(mean_absolute_error(self.labels.iloc[test_index], preds))
             gp_results[c] = combination_results
-        f3 = open('metrics_gpcx'+str(self.seed)+'.pkl','wb')
-        pickle.dump(gp_results,f3)
+        
         best = comb[getBestParam(gp_results)]
         self.best_params = best
         estimator = SymbolicRegressor(**best)

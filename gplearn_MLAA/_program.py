@@ -744,7 +744,6 @@ class _Program(object):
                 offspring_length, offspring_depth)
     
     def selective_crossover(self, donor, X, y, parsimony_coefficient, random_state, depth_probs=False):
-        print(">>>>>>>>>>>>>>SELECTIVE CROSSVER>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         donors_start = []
         donors_end = []
         donor_indiv = []
@@ -788,7 +787,7 @@ class _Program(object):
                 found_tree = True
                 break
         if not found_tree:
-            return self.crossover(donor.program, random_state, depth_probs)
+            return self.crossover(donor, random_state, depth_probs)
         else:
             donor_removed = list(set(range(len(donor_copy))) - set(range(donors_start[ids], donors_end[ids])))
             return (donor_indiv[ids].program), removed, donor_removed
