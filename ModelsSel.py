@@ -88,7 +88,6 @@ class model_runner():
                 cx[c]['num'] = var['num']
             comb[c] = cx[c]
             for train_index, test_index in kf.split(self.training):
-                print(comb[c])
                 est_gp = SymbolicRegressor(**comb[c])
                 est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
                 preds = est_gp.predict(self.training.iloc[test_index])   
