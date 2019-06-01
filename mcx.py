@@ -6,19 +6,34 @@ Created on Sat Jun  1 19:11:05 2019
 """
 import numpy as np
 import pickle
+import pandas as pd
+import seaborn as sb
+
 results = []
-for i in range(1):
-    f = open('metrics_gpcx'+str(i) + '.pkl','rb')
+for i in range(5):
+    f = open('metrics_gpinit'+str(i) + '.pkl','rb')
     results.append(pickle.load(f))
 
-final = {key:[] for key in results[0].keys()}
-for res in results:
-    for key in res:
-        final[key].append(res[key])
+#Get Mean of Models per cv
+models = {key:[] for key in results[0].keys()}
+for seed in range(len(results)):
+    for model in range(len(results[seed])):
+        models[model].append(np.mean(results[seed][model]))
 
-for key in final.keys():
-    final[key] = (np.mean(final[key]),np.std(final[key]))
+#Get Mean of Models per seed
+fr = []
+for key in models.keys():
+    t = pd.DataFrame()
+    t['mae'] = models[key]
+    t['mode'] =[key]*5
+        
+    fr.append(t)
 
+cdf = pd.concat(fr)  
+cdf.columns = ['Mean Absolute Error','Model']
+sb.boxplot(data =cdf ,y='Mean Absolute Error', x='Model')
+
+final
 def getBestParam(results):
     best = 0
     for key in results.keys():

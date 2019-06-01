@@ -822,6 +822,7 @@ class _Program(object):
     def grasm_mutation(self, X, random_state, alpha = 0.5, depth_probs=False):
         start, end = self.get_subtree(random_state, depth_probs = depth_probs)
         p = self.program[start:end]
+        
         p_semantics = _Program.execute_(p,X)
         distances = [euclidean(prgs[1], p_semantics) for prgs in self.library]
         d_min = np.min(distances)
@@ -955,13 +956,18 @@ class _Program(object):
         return program, list(mutate)
     
     def competent_mutation(self, X, y, oracle, random_state, depth_probs = False):
-        coords = self.programCoords()
-        old_semantics = self.execute(X, True)
-        start, end = self.get_subtree(random_state, depth_probs = depth_probs)
-        node = (self.program[start], coords[start])
-        new_semantics = self.semanticBackPropagation(y, node, X, coords, old_semantics)
-        node = oracle(new_semantics)
-        return self.program[:start] + node + self.program[end:]
+        rand = np.random.random()
+        if rand > 0.8:
+            
+            coords = self.programCoords()
+            old_semantics = self.execute(X, True)
+            start, end = self.get_subtree(random_state, depth_probs = depth_probs)
+            node = (self.program[start], coords[start])
+            new_semantics = self.semanticBackPropagation(y, node, X, coords, old_semantics)
+            node = oracle(new_semantics)
+            return self.program[:start] + node + self.program[end:]
+        else:
+            return self.gs_mutation_sig(-1, random_state)
 
     def semanticBackPropagation(self, D, target, X, coords, old_semantics):
         '''

@@ -35,11 +35,11 @@ class model_runner():
 
             
         #Hyper Parameter Optimization
-        edda_params = [{"deme_size": 50, "p_gsgp_demes": 0.0, "maturation": 5, "p_mutation": 1.0, "gsm_ms": -1.0}] * 1
+        hue_initialization_params = [True]*7
         selection = []
-        selection.append({'selection':'destabilization_tournament','des_probs':0.1})
-        selection.append({'selection':'destabilization_tournament','des_probs':0.5})
-        selection.append({'selection':'destabilization_tournament','des_probs':0.9})
+        #selection.append({'selection':'destabilization_tournament','des_probs':0.1})
+        #selection.append({'selection':'destabilization_tournament','des_probs':0.5})
+        #selection.append({'selection':'destabilization_tournament','des_probs':0.9})
         selection.append({'selection':'nested_tournament','num':3})
         selection.append({'selection':'nested_tournament','num':4})
         selection.append({'selection':'nested_tournament','num':5})
@@ -47,11 +47,11 @@ class model_runner():
         selection.append('double_tournament')
         selection.append('roulette')
         selection.append('semantic_tournament')
-        p_crossover=[0.1] * 10
-        p_subtree=[0.9] * 10
-        rs = [self.seed] * 10
+        p_crossover=[0.1] * 7
+        p_subtree=[0.9] * 7
+        rs = [self.seed] * 7
         param_grid_gp = {
-               'edda_params':edda_params,
+               'hue_initialization_params':hue_initialization_params,
                'selection':selection,
                'p_crossover': p_crossover,
                'p_subtree_mutation': p_subtree,
@@ -78,16 +78,17 @@ class model_runner():
         for c in range(len(comb)):
             combination_results = []
             cx = copy.deepcopy(comb)
-            if c == 0 or c == 1 or c == 2:
-                var = cx[c]['selection']
-                cx[c]['selection'] = var['selection']
-                cx[c]['destabilization_probs'] = var['des_probs']
-            elif c == 3 or c== 4 or c == 5:
+            #if c == 0 or c == 1 or c == 2:
+            #    var = cx[c]['selection']
+            #    cx[c]['selection'] = var['selection']
+            #    cx[c]['destabilization_probs'] = var['des_probs']
+            if c == 0 or c== 1 or c == 2:
                 var = cx[c]['selection']
                 cx[c]['selection'] = var['selection']
                 cx[c]['num'] = var['num']
             comb[c] = cx[c]
             for train_index, test_index in kf.split(self.training):
+                print(comb[c])
                 est_gp = SymbolicRegressor(**comb[c])
                 est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
                 preds = est_gp.predict(self.training.iloc[test_index])   

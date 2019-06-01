@@ -8,7 +8,7 @@ own custom functions.
 # Author: Trevor Stephens <trevorstephens.com>
 #
 # License: BSD 3 clause
-
+import math
 import numpy as np
 
 __all__ = ['make_function']
@@ -51,7 +51,10 @@ class _Function(object):
     
     def invert(self, pos, result, other=None):
         try:
-            return inversionDict[self.name](result,pos,other)
+            result = inversionDict[self.name](result,pos,other)
+            if math.isnan(result) or result == np.inf or result == -np.inf:
+                result = 0.001
+            return result 
         except:
             return 0.0001
         

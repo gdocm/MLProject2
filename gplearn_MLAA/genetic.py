@@ -41,7 +41,7 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 def _initialize_edda(params, population_size, X, y, sample_weight,
-                     train_indices, val_indices, verbose, logger, random_state, n_jobs):
+                     train_indices, val_indices, verbose, logger, random_state, n_jobs, library):
     # The population of local elites
     despeciation_pool = []
 
@@ -143,7 +143,7 @@ def _initialize_edda(params, population_size, X, y, sample_weight,
                                           train_indices,
                                           val_indices,
                                           seeds[starts[i]:starts[i + 1]],
-                                          params_)
+                                          params_,library)
                 for i in range(n_jobs))
 
             # Reduce, maintaining order across different n_jobs
@@ -1094,10 +1094,10 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                 if self.edda_params is not None:
                     # Use EDDA initialization
                     parents = _initialize_edda(params, self.population_size, X, y, sample_weight, train_indices,
-                       val_indices, self.verbose, logger, random_state, self.n_jobs)
+                       val_indices, self.verbose, logger, random_state, self.n_jobs,self.library)
                 
                 elif self.hue_initialization_params:
-                    parents=self.hue_initialization(self.population_size,2,X,y,train_indices,val_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
+                    parents=self.hue_initialization(self.population_size,1.8,X,y,train_indices,val_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
                        self.parsimony_coefficient,self.feature_names,random_state,self.semantical_computation,self.library,self.init_method)
                 elif self.hamming_initialization:
                     parents = initialize_hamming(self.population_size,0.2,X,y,train_indices,val_indices,self._function_set,self._arities,self.init_depth,self.n_features_,self._metric,self.transformer,self.const_range,self.p_point_replace,
@@ -1298,8 +1298,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         return self
     
     
-    def hue_initialization(self,pop_size,radius,X,y,train_indices,val_indices,function_set,arities,init_depth,n_features,metric,transformer,const_range,p_point_replace,
-                       parsimony_coefficient,feature_names,random_state,semantical_computation,library,init_method):
+    def hue_initialization(self, pop_size, radius, X, y, train_indices, val_indices, function_set, arities, init_depth, n_features, metric, transformer, const_range, p_point_replace,
+                       parsimony_coefficient, feature_names, random_state, semantical_computation, library, init_method):
         trees=[]
         prog = _Program(function_set=function_set,
                        arities=arities,
