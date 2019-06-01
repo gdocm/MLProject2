@@ -40,15 +40,15 @@ pr = PreProcessor(data.training, data.testing, target_var, 0)
 fe = FeatureEngineer(pr.training, pr.unseen, target_var, 0)
 results = []
 
-selections = ['nested_tournament', 'ranking','double_tournament','roulette','semantic_tournament', 'destabilization_tournament']
 #for sel in selections:
 #    print(sel)
-est_gp = SymbolicRegressor(verbose=1, random_state = 0, generations = 100, p_gs_mutation = 0,
+est_gp = SymbolicRegressor(verbose=1, random_state = 0, generations = 100, p_gs_mutation = 0.0,
                            p_gs_crossover = 0.0,
+                           p_selective_crossover = 0.7,
                            p_point_mutation = 0,
                            p_hoist_mutation = 0,
                            population_size = 100,
-                           p_crossover = 0.7,
+                           p_crossover = 0.0,
                            p_subtree_mutation = 0.3,
                            depth_probs = False,
                            hamming_initialization = False,val_set=0.2)

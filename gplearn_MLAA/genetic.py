@@ -124,7 +124,7 @@ def _initialize_edda(params, population_size, X, y, sample_weight,
                                                 1.0, params["edda_params"]["gsm_ms"]])
         else:
             # Standard-GP
-            params_['method_probs'] = np.array([1.0 - params["edda_params"]["p_mutation"], 1.0, 1.0, 1.0, 1.0, 1.0, 0.0])
+            params_['method_probs'] = np.array([1.0 - params["edda_params"]["p_mutation"],1.0 - params["edda_params"]["p_mutation"], 1.0, 1.0, 1.0, 1.0, 1.0, 0.0])
 
         best_program = None
         for gen in range(params["edda_params"]["maturation"]):
@@ -461,7 +461,6 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
     programs = []
 
     for i in range(n_programs):
-
         random_state = check_random_state(seeds[i])
         if parents is None:
             program = None
@@ -489,32 +488,48 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_nodes': removed,
                           'donor_idx': donor_index,
                           'donor_nodes': remains}
+            
             elif method < method_probs[1]:
+                #Selective Crossover
+                if selection_name == 'semantic_tournament':
+                    donor, donor_index = selection(parent_index)
+                elif selection_name == 'destabilization_tournament':
+                    donor, donor_index = _destabilization_tournament(des_probs)
+                else:
+                    donor, donor_index = selection()
+                program,removed, remains = parent.selective_crossover(donor.program, X, y, parsimony_coefficient, random_state, depth_probs = depth_probs)
+
+                genome = {'method': 'Selective Crossover',
+                          'parent_idx': parent_index,
+                          'parent_nodes': removed,
+                          'donor_idx': donor_index,
+                          'donor_nodes': remains}
+            elif method < method_probs[2]:
                 # GP: subtree mutation
                 program, removed, _ = parent.subtree_mutation(random_state, depth_probs = depth_probs)
                 genome = {'method': 'Subtree Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': removed}
-            elif method < method_probs[2]:
+            elif method < method_probs[3]:
                 # GP: hoist mutation
                 program, removed = parent.hoist_mutation(random_state)
                 genome = {'method': 'Hoist Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': removed}
-            elif method < method_probs[3]:
+            elif method < method_probs[4]:
                 # point_mutation
                 program, mutated = parent.point_mutation(random_state)
                 genome = {'method': 'Point Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': mutated}
-            elif method < method_probs[4]:
+            elif method < method_probs[5]:
                 #neagation_mutation
                 program, mutated = parent.negation_mutation(random_state)
                 genome = {'method':'Negation Mutation',
                           'parent_idx':parent_index,
                           'parent_nodes':mutated}
                 
-            elif method < method_probs[5]:
+            elif method < method_probs[6]:
                 # GS-crossover
                 if selection_name == 'semantic_tournament':
                     donor, donor_index = selection(parent_index)
@@ -530,8 +545,8 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 genome = {'method': 'GS-Crossover',
                           'parent_idx': parent_index,
                           'donor_idx': donor_index}
-            
-            elif method < method_probs[6]:
+                
+            elif method < method_probs[7]:
                 # GS mutation
                 if method_probs[-1] == -1:
                     gsm_ms = method
@@ -545,13 +560,13 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 genome = {'method': 'GS-Mutation',
                           'parent_idx': parent_index}
                 
-            elif method < method_probs[7]:
+            elif method < method_probs[8]:
                 #Grasm Mutation
                 program = parent.grasm_mutation(X, random_state, depth_probs = depth_probs)
                 genome = {'method':'Grasm-Mutation',
                           'parent_idx':parent_index}
                 
-            elif method < method_probs[8]:
+            elif method < method_probs[9]:
                 #Competent Mutation
                 program = parent.competent_mutation(X, y, oracle, random_state, depth_probs)
                 genome = {'method':'Competent-Mutation',
@@ -616,7 +631,6 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
             if max_samples < n_samples:
                 # Calculate OOB fitness
                 program.oob_fitness_ = program.raw_fitness(X[train_indices], y[train_indices], oob_sample_weight)
-
         programs.append(program)
 
     return programs
@@ -677,6 +691,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                  selection = 'tournament',
                  destabilization_probs = 0.0,
                  p_negation_mutation= 0.0,
+                 p_selective_crossover = 0.0,
                  num = 3):
 
         self.population_size = population_size
@@ -725,6 +740,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.destabilization_probs = destabilization_probs
         self.p_negation_mutation = p_negation_mutation
         self.num = num
+        self.p_selective_crossover = p_selective_crossover
+        
     def createProcedureLibrary(self, X):
         '''
         
@@ -931,6 +948,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
 
         # Parameters for standard GP operators
         self._method_probs = np.array([self.p_crossover,
+                                       self.p_selective_crossover,
                                        self.p_subtree_mutation,
                                        self.p_hoist_mutation,
                                        self.p_point_mutation,
@@ -953,6 +971,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
 
         self._method_probs = np.append(self._method_probs, _gs_method_probs )
         self._method_probs = np.append(self._method_probs, np.array([self.gsm_ms]))
+        
         # Parameters for semantic stopping criteria
         if 0.0 < self.tie_stopping_criteria <= 1 and 0 < self.edv_stopping_criteria <= 1.0:
             raise ValueError('Only one semantic stopping criteria is allowed: TIE or EDV. '
@@ -1548,8 +1567,8 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  function_set=('add', 'sub', 'mul', 'div'),
                  metric='mean absolute error',
                  parsimony_coefficient=0.001,
-                 p_crossover=0.9,
-                 p_subtree_mutation=0.01,
+                 p_crossover=0.0,
+                 p_subtree_mutation=0.0,
                  p_hoist_mutation=0.0,
                  p_point_mutation=0.0,
                  p_point_replace=0.0,
@@ -1575,6 +1594,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
                  selection='tournament',
                  destabilization_probs=0.0,
                  p_negation_mutation = 0.0,
+                 p_selective_crossover = 0.0,
                  num = 3):
         super(SymbolicRegressor, self).__init__(
             population_size=population_size,
@@ -1618,6 +1638,7 @@ class SymbolicRegressor(BaseSymbolic, RegressorMixin):
             selection = selection,
             destabilization_probs = destabilization_probs,
             p_negation_mutation = p_negation_mutation,
+            p_selective_crossover = p_selective_crossover,
             num = num)
 
         self.recorder = Recorder(self.generations)

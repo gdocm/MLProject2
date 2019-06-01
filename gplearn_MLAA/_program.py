@@ -150,7 +150,7 @@ class _Program(object):
         self.program = program
         self.semantical_computation = semantical_computation
         self.library = library
-
+        self.random_state = random_state
         if self.program is None:
             # Create a naive random program
             self.program = self.build_program(random_state)
@@ -163,6 +163,7 @@ class _Program(object):
             self.program = self.program[0]
         else:
             if not self.validate_program():
+                print(self.program)
                 raise ValueError('The supplied program is incomplete.')
 
         self.raw_fitness_ = None
@@ -741,6 +742,56 @@ class _Program(object):
         offspring_depth = np.maximum(np.maximum(self.program_depth, donor.program_depth)+2, self._depth_program(rt)+3)
         return (np.add(np.multiply(self.program, rt_semantics), np.multiply(np.subtract(1, rt_semantics), donor.program)),
                 offspring_length, offspring_depth)
+    
+    def selective_crossover(self, donor, X, y, parsimony_coefficient, random_state, depth_probs=False):
+        print(">>>>>>>>>>>>>>SELECTIVE CROSSVER>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        donors_start = []
+        donors_end = []
+        donor_indiv = []
+        found_tree = False
+        for i in range(2):
+            # Get a subtree to replace
+            start, end = self.get_subtree(random_state, depth_probs=depth_probs)
+            removed = range(start, end)
+            for i in range(5):
+                # Get a subtree to donate
+                donor_copy = donor.copy()
+                donor_start, donor_end = self.get_subtree(random_state, donor_copy, depth_probs=depth_probs)
+                donors_start.append(donor_start)
+                donors_end.append(donor_end)
+                # Insert genetic material from donor
+                indiv = self.program[:start] + donor[donor_start:donor_end] + self.program[end:]
+                indiv = _Program(
+                     self.function_set,
+                     self.arities,
+                     self.init_depth,
+                     self.init_method,
+                     self.n_features,
+                     self.const_range,
+                     self.metric,
+                     self.p_point_replace,
+                     self.parsimony_coefficient,
+                     self.random_state,
+                     self.transformer,
+                     self.feature_names,
+                     indiv,
+                     self.semantical_computation,
+                     self.library)
+                indiv.raw_fitness_ = indiv.raw_fitness(X,y,None)
+                indiv.fitness_ = indiv.fitness(parsimony_coefficient)
+                donor_indiv.append(indiv)
+                
+            
+            fitness = np.array([donor_indiv[i].fitness_ for i in range(len(donor_indiv))])
+            ids = fitness.argmax()
+            if (self.fitness_ < fitness[ids]):
+                found_tree = True
+                break
+        if not found_tree:
+            return self.crossover(donor.program, random_state, depth_probs)
+        else:
+            donor_removed = list(set(range(len(donor_copy))) - set(range(donors_start[ids], donors_end[ids])))
+            return (donor_indiv[ids].program), removed, donor_removed
     
     def negation_mutation(self, random_state):
         "The idea is to change the used function to it's opposite"
