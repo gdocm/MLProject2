@@ -47,42 +47,68 @@ class _Function(object):
         
         return results
     
-    def invert(self, pos, result, other):
-        name = self.name
-        if name == 'add':
-            return result - other
-        elif name == 'sub':
-            if pos == 1:
-                return result + other
-            else:
-                return other - result
-        elif name == 'mul':
-            if other != None:
-                return result/other
-            else:
-                return 0.0001
-        elif name == 'div':
-            if pos == 1:
-                return result * other
-            else:
-                if result != 0:
-                    return other/result
-                else:
-                    return 0.0001
-        elif name == 'log':
-            return np.e**result
-        elif name == 'sin':
-            if result <= 1:
-                return np.arcsin(result)
-            else:
-                return 0.0001
-        elif name == 'cos':
-            if result <= 1:
-                return np.arccos(result)
-            else:
-                return 0.0001
+
+    
+    def invert(self, pos, result, other=None):
+        try:
+            return inversionDict[self.name](result,pos,other)
+        except:
+            return 0.0001
+        
+def addInv(result,other,pos):
+    return result - other
+
+def subInv(result,other,pos):
+    if pos == 1:
+        return result + other
+    else:
+        return other - result
+    
+def mulInv(result,other,pos):
+    if other != 0:
+        return result/other
+    else:
         return 0.0001
 
+def divInv(result, other, pos):
+    if pos == 1:
+        return result * other
+    else:
+        if result != 0:
+            return other/result
+        else:
+            return 0.0001
+
+def logInv(result, other, pos):
+    return np.e**result
+
+def sinInv(result, other, pos):
+    if result <= 1:
+        return np.arcsin(result)
+    else:
+        return 0.0001
+
+def cosInv(result, other, pos):
+    if result <= 1:
+        return np.arccos(result)
+    else:
+        return 0.0001    
+
+def sigInv(result, other, pos):
+    if 1-result != 0 or result/(1-result) < 0:
+        return np.log(result/(1-result))
+    else:
+        return 0.0001
+
+inversionDict = {
+        'add':addInv,
+        'sub':subInv,
+        'mul':mulInv,
+        'div':divInv,
+        'log':logInv,
+        'sin':sinInv,
+        'cos':cosInv,
+        'sig':sigInv}
 
 def make_function(function, name, arity):
     """Make a function node, a representation of a mathematical relationship.
@@ -195,6 +221,7 @@ cos1 = make_function(function=np.cos, name='cos', arity=1)
 tan1 = make_function(function=np.tan, name='tan', arity=1)
 sig1 = make_function(function=_sigmoid, name='sig', arity=1)
 tanh1 = make_function(function=_hyperbolic_tangent, name='tanh', arity=1)
+exp1 = make_function(function=np.exp, name='exp', arity=1)
 
 _function_map = {'add': add2,
                  'sub': sub2,
@@ -210,4 +237,5 @@ _function_map = {'add': add2,
                  'sin': sin1,
                  'cos': cos1,
                  'tan': tan1,
-                 "tanh": tanh1}
+                 "tanh": tanh1,
+                 "exp":exp1}

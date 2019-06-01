@@ -4,7 +4,7 @@ Created on Fri May 31 15:21:26 2019
 
 @author: Guilherme
 """
-
+import pickle
 from sklearn.ensemble import RandomForestRegressor, BaggingRegressor, GradientBoostingRegressor, AdaBoostRegressor
 from gplearn_MLAA.genetic import SymbolicRegressor
 from sklearn.model_selection import GridSearchCV, cross_val_score
@@ -101,7 +101,8 @@ class model_runner():
                 
                 combination_results.append(mean_absolute_error(self.labels.iloc[test_index], preds))
             gp_results[c] = combination_results
-        
+        f3 = open('metrics_gpinit'+str(self.seed)+'.pkl','wb')
+        pickle.dump(gp_results,f3)
         best = comb[getBestParam(gp_results)]
         self.best_params = best
         estimator = SymbolicRegressor(**best)

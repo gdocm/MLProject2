@@ -1088,7 +1088,6 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
         self.createProcedureLibrary(X)
         
         for gen in range(prior_generations, self.generations):
-
             start_time = time()
 
             if gen == 0:

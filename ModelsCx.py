@@ -60,8 +60,8 @@ class model_runner():
         
         model = self.gridSearchGp(param_grid_gp)
 
-        preds = model.predict(self.testing)
-        self.scoreDict = {'score':mean_absolute_error(self.labels_t, preds)}
+        #preds = model.predict(self.testing)
+        #self.scoreDict = {'score':mean_absolute_error(self.labels_t, preds)}
     
     def gridSearchGp(self,param_grid):
         
@@ -91,11 +91,11 @@ class model_runner():
             gp_results[c] = combination_results
         f3 = open('metrics_gpcx'+str(self.seed)+'.pkl','wb')
         pickle.dump(gp_results,f3)
-        best = comb[getBestParam(gp_results)]
-        self.best_params = best
-        estimator = SymbolicRegressor(**best)
-        estimator.fit(self.training,self.labels)
-        return estimator
+        #best = comb[getBestParam(gp_results)]
+        #self.best_params = best
+        #estimator = SymbolicRegressor(**best)
+        #estimator.fit(self.training,self.labels)
+        #return estimator
     
 def getBestParam(results):
     best = 0

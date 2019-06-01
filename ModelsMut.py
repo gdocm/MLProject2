@@ -16,6 +16,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 import itertools
 import copy
+import pickle
 
 ### MODELS
 class model_runner():
@@ -35,18 +36,31 @@ class model_runner():
 
             
         #Hyper Parameter Optimization
-        edda_params = [{"deme_size": 50, "p_gsgp_demes": 0.0, "maturation": 5, "p_mutation": 1.0, "gsm_ms": -1.0}]*6
-        selection = ['destabilization_tournament']*6
-        des_probs = [0.1]*6
+        edda_params = [{"deme_size": 50, "p_gsgp_demes": 0.0, "maturation": 5, "p_mutation": 1.0, "gsm_ms": -1.0}]#*8
+        selection = ['destabilization_tournament']#*8
+        des_probs = [0.1]#*8
+        crossover = [{'p_crossover':0.1}] #* 5
+        #crossover.append({'p_gs_crossover':0.1})
+        #crossover.append({'p_gs_crossover':0.1})
         crossover = []
+        crossover.append({'p_gs_crossover':0.1})
         mutations = []
-        rs = [self.seed] * 6
+        #mutations.append({'p_subtree_mutation':0.9})
+        #mutations.append({'p_subtree_mutation':0.9, 'depth_probs':True})
+        #mutations.append({'p_point_mutation':0.9})
+        #mutations.append({'p_negation_mutation':0.9})
+        #mutations.append({'p_hoist_mutation':0.9})
+        #mutations.append({'p_gs_mutation':0.9})
+        #mutations.append({'p_grasm_mutation':0.9})
+        mutations.append({'p_competent_mutation':0.9,'depth_probs':True,'verbose':1})
+        rs = [self.seed]# * 8
         
         param_grid_gp = {
                'edda_params':edda_params,
                'selection':selection,
                'destabilization_probs':des_probs,
                'crossover':crossover,
+               'mutation':mutations,
                'random_state':rs}
         
         model = self.gridSearchGp(param_grid_gp)
@@ -73,14 +87,20 @@ class model_runner():
             for key in cx[c]['crossover']:
                 cx[c][key] = cx[c]['crossover'][key]
             del cx[c]['crossover']
+            for key in cx[c]['mutation']:
+                cx[c][key] = cx[c]['mutation'][key]
+            del cx[c]['mutation']
             comb[c] = cx[c]
-            for train_index, test_index in kf.split(self.training):
-                est_gp = SymbolicRegressor(**comb[c])
-                est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
-                preds = est_gp.predict(self.training.iloc[test_index])   
-                combination_results.append(mean_absolute_error(self.labels.iloc[test_index], preds))
+            #for train_index, test_index in kf.split(self.training):
+                #est_gp = SymbolicRegressor(**comb[c])
+                #est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
+                #preds = est_gp.predict(self.training.iloc[test_index])   
+                #combination_results.append(mean_absolute_error(self.labels.iloc[test_index], preds))
+            est_gp = SymbolicRegressor(**comb[c])
+            est_gp.fit(self.training, self.labels)
             gp_results[c] = combination_results
-        
+        f3 = open('metrics_gpmut'+str(self.seed)+'.pkl','wb')
+        pickle.dump(gp_results,f3)
         best = comb[getBestParam(gp_results)]
         self.best_params = best
         estimator = SymbolicRegressor(**best)

@@ -151,6 +151,7 @@ class _Program(object):
         self.semantical_computation = semantical_computation
         self.library = library
         self.random_state = random_state
+        self.dict_ = None
         if self.program is None:
             # Create a naive random program
             self.program = self.build_program(random_state)
@@ -806,9 +807,9 @@ class _Program(object):
                             'abs': _function_map['neg'],
                             'neg': _function_map['abs'],
                             'log': _function_map['exp'],
-                            'exp': _function_map['log'],
-                            'sqrt': _function_map['power'],
-                            'power': _function_map['sqrt']}
+                            'exp': _function_map['log']}
+                            #'sqrt': _function_map['power'],
+                            #'power': _function_map['sqrt']}
         for node in mutate:
             if isinstance(program[node], _Function):
                 for name, function in opposite_function.items():
@@ -967,7 +968,7 @@ class _Program(object):
         Calculate desired semantics for target node
         '''
         #print("Performing semantic backpropagation")
-        node = (self.program[self.nodeByArity(target[1][0], coords)],[target[1][0]])
+        node = (self.program[self.nodeByArity(target[1][0], coords, None, None)],[target[1][0]])
         for s in range(len(D)): #For semantic in target semantics
             s_ = D[s]
             e = 0
@@ -978,24 +979,25 @@ class _Program(object):
                 
                 ni = self.nextNode(node[1],target,coords)
                 x = (self.program[ni], coords[ni])
-                
+                other = None
                 #Set arities for the other node
-                if x[1][-1] == 1:
-                    temp = x[1].copy()
-                    temp[-1] = 0
-                elif x[1][-1] == 0:
-                    temp = x[1].copy()
-                    temp[-1] = 1
-                    
-                #Get semantics of the other node
-                other_i = self.nodeByArity(temp,coords)
-                other = self.program[other_i]
-                if isinstance(other, _Function):
-                    other = list(filter(lambda x: x[1] == other_i, old_semantics))[0][0]
-                    if not isinstance(other, int) and not isinstance(other, np.int32) and not isinstance(other, float):
-                        other = other[s]
-                elif isinstance(other,int) or isinstance(other, np.int32):
-                    other = X[s,other]
+                if node[0].arity == 2:
+                    if x[1][-1] == 1:
+                        temp = x[1].copy()
+                        temp[-1] = 0
+                    elif x[1][-1] == 0:
+                        temp = x[1].copy()
+                        temp[-1] = 1
+                    #Get semantics of the other node
+                    other_i = self.nodeByArity(temp,coords, None, None)
+                    other = self.program[other_i]
+
+                    if isinstance(other, _Function):
+                        other = list(filter(lambda x: x[1] == other_i, old_semantics))[0][0]
+                        if not isinstance(other, int) and not isinstance(other, np.int32) and not isinstance(other, float):
+                            other = other[s]
+                    elif isinstance(other,int) or isinstance(other, np.int32):
+                        other = X[s,other]
 
                 #Set position of sub-target node
                 k = x[1][-1]
@@ -1026,38 +1028,48 @@ class _Program(object):
             del node[-1]
         
         n_coords = list(np.array(n_coords)[:len(node)+1])
-        return self.nodeByArity(n_coords, coords)
+        return self.nodeByArity(n_coords, coords, target, node)
     
-    def nodeByArity(self,node_arity, coords):
+    def nodeByArity(self,node_arity, coords, target, node):
         '''
         Returns index of node by arity list
         '''
-        indexes = list(range(len(coords)))
-        coords = [tuple(coord) for coord in coords]
+        if self.dict_ is None:
+            indexes = list(range(len(coords)))
+            coords = [tuple(coord) for coord in coords]
+            
+            self.dict_ = dict(zip(coords,indexes))
         
-        dict_ = dict(zip(coords,indexes))
         if isinstance(node_arity, int) or isinstance(node_arity, np.int32):
             node_arity = [node_arity]
-        return dict_[tuple(node_arity)]
+        try:
+            return self.dict_[tuple(node_arity)]
+        except:
+            raise Exception(self.dict_,node_arity)
+        
     
 
     
     def programCoords(self):
-        arities = [-1,2]
+        arities = [-1,self.program[0].arity]
         coords = [[-1]]
         for i in range(1, len(self.program)):
             node = self.program[i]
             if isinstance(node, _Function):
                 arities[-1] -= 1
                 arities.append(node.arity)
-            else:
-                arities[-1] -= 1
-            if arities[-1] == 2:
                 temp = arities.copy()
                 del temp[-1]
                 coords.append(temp.copy())
             else:
+                arities[-1] -= 1
                 coords.append(arities.copy())
+            #if arities[-1] == node.arity:
+            #    temp = arities.copy()
+            #    del temp[-1]
+            #    coords.append(temp.copy())
+            #else:
+            #    coords.append(arities.copy())
             while arities[-1] == 0:
                 del arities[-1]
                 if len(arities) == 0:
