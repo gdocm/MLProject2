@@ -36,12 +36,12 @@ class model_runner():
 
             
         #Hyper Parameter Optimization
-        hue_initialization_params = [True]*8
-        selection = ['semantic_tournament']*8
+        hue_initialization_params = [True]*6
+        selection = ['semantic_tournament']*6
         crossover = [{'p_crossover':0.1}] * 5
         crossover.append({'p_selective_crossover':0.1})
-        crossover.append({'p_selective_crossover':0.1})
-        crossover.append({'p_selective_crossover':0.1})
+        #crossover.append({'p_selective_crossover':0.1})
+        #crossover.append({'p_selective_crossover':0.1})
         mutations = []
         mutations.append({'p_subtree_mutation':0.9})
         mutations.append({'p_subtree_mutation':0.9, 'depth_probs':True})
@@ -49,9 +49,9 @@ class model_runner():
         mutations.append({'p_negation_mutation':0.9})
         mutations.append({'p_hoist_mutation':0.9})
         mutations.append({'p_gs_mutation':0.9})
-        mutations.append({'p_grasm_mutation':0.9})
-        mutations.append({'p_competent_mutation':0.9})
-        rs = [self.seed] * 8
+        #mutations.append({'p_grasm_mutation':0.9})
+        #mutations.append({'p_competent_mutation':0.9})
+        rs = [self.seed] * 6
         
         param_grid_gp = {
                'hue_initialization_params':hue_initialization_params,
