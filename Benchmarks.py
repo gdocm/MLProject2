@@ -72,8 +72,8 @@ for seed in range(5):
     params.append(res.best_params)
     results.append(res.scoreDict)
 
-f = open('results_gpsel.pkl','wb')
+f = open('results_gpcx.pkl','wb')
 pickle.dump(results,f)
 
-f2 = open('params_gpsel.pkl','wb')
+f2 = open('params_gpcx.pkl','wb')
 pickle.dump(params,f2)
