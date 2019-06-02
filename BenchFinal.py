@@ -59,21 +59,21 @@ processor.addStages([missingValues,outlierExploration,featureSelection])
 
 results = []
 params = []
-seed = 9
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=seed)
-
-training = X_train.copy()
-training[target_var] = y_train.copy()
-testing = X_test.copy()
-testing[target_var] = y_test.copy()
-
-data = Dataset(training,testing,target_var)
-processor.training = data.training
-processor.testing = data.testing
-processor.target_var = target_var
-processor.seed = seed
-processor.exec_()
-
-res = model_runner(processor.training.copy(),target_var, processor.testing.copy(),seed)
-params.append(res.best_params)
+for seed in range(5):
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=seed)
+    
+    training = X_train.copy()
+    training[target_var] = y_train.copy()
+    testing = X_test.copy()
+    testing[target_var] = y_test.copy()
+    
+    data = Dataset(training,testing,target_var)
+    processor.training = data.training
+    processor.testing = data.testing
+    processor.target_var = target_var
+    processor.seed = seed
+    processor.exec_()
+    
+    res = model_runner(processor.training.copy(),target_var, processor.testing.copy(),seed)
+#params.append(res.best_params)

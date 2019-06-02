@@ -417,8 +417,14 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
         "Falta confirmar a distancia"
         parents_temp = parents.copy()
         parents_temp_ids = list(range(len(parents_temp)))
-        del parents_temp[pai_id]
-        del parents_temp_ids[pai_id]
+        if type(parents_temp) == list:
+            del parents_temp[pai_id]
+        else:
+            parents_temp = np.delete(parents_temp, pai_id)
+        if type(parents_temp_ids):    
+            del parents_temp_ids[pai_id]
+        else:
+            parents_temp = np.delete(parents_temp_ids, pai_id)
         
         contenders = random_state.choice(parents_temp_ids, tournament_size)
         dists = []

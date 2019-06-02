@@ -67,6 +67,7 @@ class Recorder:
     
     def ccomplex(self,X):
         for i in range(self.generations):
+            print(i)
             filename = open('pop'+str(i)+'.pkl','rb')
             self.population = pickle.load(filename)
             self.complexity.append(self.computeComplexity(X))

@@ -38,15 +38,15 @@ class model_runner():
         #Hyper Parameter Optimization
         hue_initialization_params = [True]*2
         selection = ['semantic_tournament']*2
-        crossover  =[{'p_selective_crossover':0.1}]*2
-        mutations = [{'p_subtree_mutation':0.9}]*2
-        rs = [self.seed] * 2
+        p_selective_crossover  =[0.1]*2
+        p_grasm_mutation = [0.9]*2
+        rs = [self.seed]*2
         dynamic_depth = [False,True]
         param_grid_gp = {
                'hue_initialization_params':hue_initialization_params,
                'selection':selection,
-               'crossover':crossover,
-               'mutation':mutations,
+               'p_selective_crossover':p_selective_crossover,
+               'p_grasm_mutation':p_grasm_mutation,
                'dynamic_depth':dynamic_depth,
                'random_state':rs}
         
@@ -71,8 +71,8 @@ class model_runner():
             gp_results[c] = (est_gp.recorder, mean_absolute_error(self.labels_t, preds))
         f3 = open('metrics_gpdd'+str(self.seed)+'.pkl','wb')
         pickle.dump(gp_results,f3)
-        best = comb[getBestParam(gp_results)]
-        self.best_params = best
+        #best = comb[getBestParam(gp_results)]
+        #self.best_params = best
         return
     
 def getBestParam(results):
