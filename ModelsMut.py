@@ -66,7 +66,6 @@ class model_runner():
         self.scoreDict = {'score':mean_absolute_error(self.labels_t, preds)}
     
     def gridSearchGp(self,param_grid):
-        
         parameters = list(param_grid.values())
         comb = []
         for i in range(len(parameters[0])):

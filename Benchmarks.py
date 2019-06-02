@@ -26,7 +26,7 @@ from Toolbox.DataExploration.FeatureSelection import recursive_feature_eliminati
 from sklearn.model_selection import KFold
     
 #Data Loading
-data = pd.read_csv('Data/data.csv')
+data = pd.read_csv('Data\\data.csv')
 data.drop('Unnamed: 0', axis  = 1, inplace = True)
 
 entities = dict(zip(data.index, data['Entity']))
