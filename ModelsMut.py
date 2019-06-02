@@ -39,6 +39,7 @@ class model_runner():
         hue_initialization_params = [True]*8
         selection = ['semantic_tournament']*8
         crossover = [{'p_selective_crossover':0.1}] * 5
+        crossover = []
         crossover.append({'p_gs_crossover':0.1})
         crossover.append({'p_gs_crossover':0.1})
         crossover.append({'p_gs_crossover':0.1})
@@ -88,11 +89,11 @@ class model_runner():
                 cx[c][key] = cx[c]['mutation'][key]
             del cx[c]['mutation']
             comb[c] = cx[c]
-            #for train_index, test_index in kf.split(self.training):
-                #est_gp = SymbolicRegressor(**comb[c])
-                #est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
-                #preds = est_gp.predict(self.training.iloc[test_index])   
-                #combination_results.append(mean_absolute_error(self.labels.iloc[test_index], preds))
+            for train_index, test_index in kf.split(self.training):
+                est_gp = SymbolicRegressor(**comb[c])
+                est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
+                preds = est_gp.predict(self.training.iloc[test_index])   
+                combination_results.append(mean_absolute_error(self.labels.iloc[test_index], preds))
             est_gp = SymbolicRegressor(**comb[c])
             est_gp.fit(self.training, self.labels)
             gp_results[c] = combination_results

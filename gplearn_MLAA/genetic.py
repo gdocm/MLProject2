@@ -754,7 +754,8 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
             
             filename = open('procedureLibrary.pkl','rb')
             self.library = pickle.load(filename)
-            return
+            if X.shape[0] == len(self.library[0][1]):
+                return
         
         except:
             pass
