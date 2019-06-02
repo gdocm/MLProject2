@@ -14,7 +14,7 @@ from data_loader import Dataset
 from data_preprocessing import PreProcessor
 from feature_engineering import FeatureEngineer
 from gplearn_MLAA.genetic import SymbolicRegressor
-from ModelsCx import model_runner
+from ModelsMut import model_runner
 import copy
 from Stage import Stage
 from CrossProcessor import CrossProcessor
@@ -72,8 +72,8 @@ for seed in range(5):
     params.append(res.best_params)
     results.append(res.scoreDict)
 
-f = open('results_gpcx.pkl','wb')
+f = open('results_gpmut.pkl','wb')
 pickle.dump(results,f)
 
-f2 = open('params_gpcx.pkl','wb')
+f2 = open('params_gpmut.pkl','wb')
 pickle.dump(params,f2)

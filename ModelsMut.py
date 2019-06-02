@@ -36,10 +36,9 @@ class model_runner():
 
             
         #Hyper Parameter Optimization
-        edda_params = [{"deme_size": 50, "p_gsgp_demes": 0.0, "maturation": 5, "p_mutation": 1.0, "gsm_ms": -1.0}]*8
-        selection = ['destabilization_tournament']*8
-        des_probs = [0.1]*8
-        crossover = [{'p_crossover':0.1}] * 5
+        hue_initialization_params = [True]*8
+        selection = ['semantic_tournament']*8
+        crossover = [{'p_selective_crossover':0.1}] * 5
         crossover.append({'p_gs_crossover':0.1})
         crossover.append({'p_gs_crossover':0.1})
         crossover.append({'p_gs_crossover':0.1})
@@ -55,9 +54,8 @@ class model_runner():
         rs = [self.seed] * 8
         
         param_grid_gp = {
-               'edda_params':edda_params,
+               'hue_initialization_params':hue_initialization_params,
                'selection':selection,
-               'destabilization_probs':des_probs,
                'crossover':crossover,
                'mutation':mutations,
                'random_state':rs}
