@@ -11,7 +11,7 @@ import seaborn as sb
 
 results = []
 for i in range(5):
-    f = open('metrics_gpinit'+str(i) + '.pkl','rb')
+    f = open('metrics_gpsel'+str(i) + '.pkl','rb')
     results.append(pickle.load(f))
 
 #Get Mean of Models per cv

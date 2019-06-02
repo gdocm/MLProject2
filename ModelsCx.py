@@ -36,8 +36,8 @@ class model_runner():
 
             
         #Hyper Parameter Optimization
-        edda_params = [{"deme_size": 50, "p_gsgp_demes": 0.0, "maturation": 5, "p_mutation": 1.0, "gsm_ms": -1.0}]*6
-        selection = ['destabilization_tournament']*6
+        hue_initialization_params = [True]*6
+        selection = ['semantic_tournament']*6
         des_probs = [0.1]*6
         crossover = []
         #Normal Crossovers
@@ -52,7 +52,7 @@ class model_runner():
         rs = [self.seed] * 6
         
         param_grid_gp = {
-               'edda_params':edda_params,
+               'hue_initialization_params':hue_initialization_params,
                'selection':selection,
                'destabilization_probs':des_probs,
                'crossover':crossover,
@@ -60,8 +60,8 @@ class model_runner():
         
         model = self.gridSearchGp(param_grid_gp)
 
-        #preds = model.predict(self.testing)
-        #self.scoreDict = {'score':mean_absolute_error(self.labels_t, preds)}
+        preds = model.predict(self.testing)
+        self.scoreDict = {'score':mean_absolute_error(self.labels_t, preds)}
     
     def gridSearchGp(self,param_grid):
         
@@ -91,11 +91,11 @@ class model_runner():
             gp_results[c] = combination_results
         f3 = open('metrics_gpcx'+str(self.seed)+'.pkl','wb')
         pickle.dump(gp_results,f3)
-        #best = comb[getBestParam(gp_results)]
-        #self.best_params = best
-        #estimator = SymbolicRegressor(**best)
-        #estimator.fit(self.training,self.labels)
-        #return estimator
+        best = comb[getBestParam(gp_results)]
+        self.best_params = best
+        estimator = SymbolicRegressor(**best)
+        estimator.fit(self.training,self.labels)
+        return estimator
     
 def getBestParam(results):
     best = 0
