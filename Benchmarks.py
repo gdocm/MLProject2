@@ -14,7 +14,7 @@ from data_loader import Dataset
 from data_preprocessing import PreProcessor
 from feature_engineering import FeatureEngineer
 from gplearn_MLAA.genetic import SymbolicRegressor
-from ModelsSel import model_runner
+from ModelsCx import model_runner
 import copy
 from Stage import Stage
 from CrossProcessor import CrossProcessor
