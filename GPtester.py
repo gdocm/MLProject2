@@ -58,7 +58,6 @@ est_gp.fit(fe.training.drop(target_var, axis = 1), fe.training[target_var])
 
 preds = est_gp.predict(fe.unseen.drop(target_var, axis = 1))
 
-mean_squared_error(fe.unseen[target_var], preds)
 mean_absolute_error(fe.unseen[target_var], preds)
 #Pheno Entropy
 pe, = plt.plot(range(1,len(est_gp.recorder.pheno_entropy)), np.array(est_gp.recorder.pheno_entropy[1:])*-1)

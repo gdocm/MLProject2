@@ -8,11 +8,14 @@ import numpy as np
 import pickle
 import pandas as pd
 import seaborn as sb
-
+import copy
 results = []
 for i in range(5):
-    f = open('metrics_gpcx'+str(i) + '.pkl','rb')
+    f = open('metrics_gpmut'+str(i) + '.pkl','rb')
     results.append(pickle.load(f))
+
+f5= open('sem_mut.pkl','rb')
+results2 = pickle.load(f5)
 
 #Get Mean of Models per cv
 models = {key:[] for key in results[0].keys()}
