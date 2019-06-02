@@ -489,47 +489,38 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'donor_idx': donor_index,
                           'donor_nodes': remains}
             
-            elif method < method_probs[1]:
-                #Selective Crossover
-                if selection_name == 'semantic_tournament':
-                    donor, donor_index = selection(parent_index)
-                elif selection_name == 'destabilization_tournament':
-                    donor, donor_index = _destabilization_tournament(des_probs)
-                else:
-                    donor, donor_index = selection()
-                program,removed, remains = parent.selective_crossover(donor.program, X, y, parsimony_coefficient, random_state, depth_probs = depth_probs)
 
                 genome = {'method': 'Selective Crossover',
                           'parent_idx': parent_index,
                           'parent_nodes': removed,
                           'donor_idx': donor_index,
                           'donor_nodes': remains}
-            elif method < method_probs[2]:
+            elif method < method_probs[1]:
                 # GP: subtree mutation
                 program, removed, _ = parent.subtree_mutation(random_state, depth_probs = depth_probs)
                 genome = {'method': 'Subtree Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': removed}
-            elif method < method_probs[3]:
+            elif method < method_probs[2]:
                 # GP: hoist mutation
                 program, removed = parent.hoist_mutation(random_state)
                 genome = {'method': 'Hoist Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': removed}
-            elif method < method_probs[4]:
+            elif method < method_probs[3]:
                 # point_mutation
                 program, mutated = parent.point_mutation(random_state)
                 genome = {'method': 'Point Mutation',
                           'parent_idx': parent_index,
                           'parent_nodes': mutated}
-            elif method < method_probs[5]:
+            elif method < method_probs[4]:
                 #neagation_mutation
                 program, mutated = parent.negation_mutation(random_state)
                 genome = {'method':'Negation Mutation',
                           'parent_idx':parent_index,
                           'parent_nodes':mutated}
                 
-            elif method < method_probs[6]:
+            elif method < method_probs[5]:
                 # GS-crossover
                 if selection_name == 'semantic_tournament':
                     donor, donor_index = selection(parent_index)
@@ -546,6 +537,16 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_idx': parent_index,
                           'donor_idx': donor_index}
                 
+            elif method < method_probs[6]:
+                #Selective Crossover
+                if selection_name == 'semantic_tournament':
+                    donor, donor_index = selection(parent_index)
+                elif selection_name == 'destabilization_tournament':
+                    donor, donor_index = _destabilization_tournament(des_probs)
+                else:
+                    donor, donor_index = selection()
+                program,removed, remains = parent.selective_crossover(donor.program, X, y, parsimony_coefficient, random_state, depth_probs = depth_probs)
+
             elif method < method_probs[7]:
                 # GS mutation
                 if method_probs[-1] == -1:
@@ -949,7 +950,6 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
 
         # Parameters for standard GP operators
         self._method_probs = np.array([self.p_crossover,
-                                       self.p_selective_crossover,
                                        self.p_subtree_mutation,
                                        self.p_hoist_mutation,
                                        self.p_point_mutation,
@@ -961,7 +961,7 @@ class BaseSymbolic(BaseEstimator, metaclass=ABCMeta):
                              'and p_point_mutation must be in [0.0, 1.0]')
 
         # Parameters for GS operators
-        _gs_method_probs = [self.p_gs_crossover, self.p_gs_mutation, self.p_grasm_mutation, self.p_competent_mutation]
+        _gs_method_probs = [self.p_gs_crossover,self.p_selective_crossover, self.p_gs_mutation, self.p_grasm_mutation, self.p_competent_mutation]
         _gs_method_probs = np.cumsum(_gs_method_probs)
 
         if _gs_method_probs[-1] > 0.0 and self._method_probs[-1] > 0.0:

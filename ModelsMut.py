@@ -38,10 +38,10 @@ class model_runner():
         #Hyper Parameter Optimization
         hue_initialization_params = [True]*8
         selection = ['semantic_tournament']*8
-        crossover = [{'p_selective_crossover':0.1}] * 5
-        crossover.append({'p_gs_crossover':0.1})
-        crossover.append({'p_gs_crossover':0.1})
-        crossover.append({'p_gs_crossover':0.1})
+        crossover = [{'p_crossover':0.1}] * 5
+        crossover.append({'p_selective_crossover':0.1})
+        crossover.append({'p_selective_crossover':0.1})
+        crossover.append({'p_selective_crossover':0.1})
         mutations = []
         mutations.append({'p_subtree_mutation':0.9})
         mutations.append({'p_subtree_mutation':0.9, 'depth_probs':True})
@@ -88,7 +88,6 @@ class model_runner():
                 cx[c][key] = cx[c]['mutation'][key]
             del cx[c]['mutation']
             comb[c] = cx[c]
-            print(comb[c])
             for train_index, test_index in kf.split(self.training):
                 est_gp = SymbolicRegressor(**comb[c])
                 est_gp.fit(self.training.iloc[train_index], self.labels.iloc[train_index])
