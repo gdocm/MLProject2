@@ -488,13 +488,6 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                           'parent_nodes': removed,
                           'donor_idx': donor_index,
                           'donor_nodes': remains}
-            
-
-                genome = {'method': 'Selective Crossover',
-                          'parent_idx': parent_index,
-                          'parent_nodes': removed,
-                          'donor_idx': donor_index,
-                          'donor_nodes': remains}
             elif method < method_probs[1]:
                 # GP: subtree mutation
                 program, removed, _ = parent.subtree_mutation(random_state, depth_probs = depth_probs)
@@ -546,7 +539,12 @@ def _parallel_evolve(n_programs, parents, X, y, sample_weight, train_indices, va
                 else:
                     donor, donor_index = selection()
                 program,removed, remains = parent.selective_crossover(donor.program, X, y, parsimony_coefficient, random_state, depth_probs = depth_probs)
-
+                
+                genome = {'method': 'Selective Crossover',
+                  'parent_idx': parent_index,
+                  'parent_nodes': removed,
+                  'donor_idx': donor_index,
+                  'donor_nodes': remains}
             elif method < method_probs[7]:
                 # GS mutation
                 if method_probs[-1] == -1:
